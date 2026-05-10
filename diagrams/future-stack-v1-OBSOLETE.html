@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Stack futuro — Bots RdM (Cloudflare Workers)</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #121826;
+    --panel-2: #1a2236;
+    --border: #2a3447;
+    --text: #e5e9f2;
+    --text-dim: #8b95a8;
+    --accent: #7c9eff;
+    --green: #5fd28d;
+    --yellow: #f5c869;
+    --red: #ef6b75;
+    --blue: #5fb3e9;
+    --purple: #b48cd9;
+    --orange: #f0915b;
+    --cf: #f6821f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "SF Pro Display", "Inter", system-ui, sans-serif;
+    line-height: 1.5;
+    padding: 32px;
+    font-size: 13px;
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 4px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-box {
+    width: 12px; height: 12px; border-radius: 2px;
+  }
+  .diagram {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  svg { display: block; margin: 0 auto; }
+  .node-manychat { fill: #1a3047; stroke: var(--blue); stroke-width: 1.5; }
+  .node-worker { fill: #2a1e10; stroke: var(--cf); stroke-width: 1.5; }
+  .node-llm { fill: #1f3022; stroke: var(--green); stroke-width: 1.5; }
+  .node-d1 { fill: #1a2236; stroke: var(--accent); stroke-width: 1.5; }
+  .node-kv { fill: #2a221b; stroke: var(--orange); stroke-width: 1.5; }
+  .node-r2 { fill: #2a2418; stroke: var(--yellow); stroke-width: 1.5; }
+  .node-ext { fill: #2a1f23; stroke: var(--red); stroke-width: 1.5; }
+  .node-gh { fill: #181818; stroke: #888; stroke-width: 1.5; }
+  .node-label {
+    fill: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .node-sub {
+    fill: var(--text-dim);
+    font-size: 10px;
+    font-family: inherit;
+  }
+  .node-id {
+    fill: var(--text-dim);
+    font-size: 9px;
+    font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+  }
+  .flow {
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    fill: none;
+    marker-end: url(#arrow);
+  }
+  .flow-async {
+    stroke: var(--text-dim);
+    stroke-dasharray: 4 3;
+  }
+  .flow-cron {
+    stroke: var(--cf);
+    stroke-width: 1.5;
+    fill: none;
+    marker-end: url(#arrow-cf);
+  }
+  .flow-label {
+    fill: var(--text-dim);
+    font-size: 9px;
+    font-family: "SF Mono", monospace;
+  }
+  .group-bg {
+    fill: rgba(255,255,255,0.02);
+    stroke: var(--border);
+    stroke-dasharray: 4 3;
+  }
+  .group-title {
+    fill: var(--text-dim);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 12px;
+  }
+  th {
+    background: var(--panel-2);
+    color: var(--text-dim);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  td.id { font-family: "SF Mono", monospace; font-size: 11px; color: var(--accent); }
+  td.dim { color: var(--text-dim); }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--panel-2);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .pill-new { background: rgba(95, 210, 141, 0.15); color: var(--green); }
+  .pill-keep { background: rgba(124, 158, 255, 0.15); color: var(--accent); }
+  .pill-cf { background: rgba(246, 130, 31, 0.15); color: var(--cf); }
+  h2 {
+    font-size: 17px;
+    margin-top: 32px;
+    margin-bottom: 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+  .stat-value.up { color: var(--green); }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stat-sub { font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+  code {
+    font-family: "SF Mono", monospace;
+    background: var(--panel-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+  .file-tree {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    font-family: "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.7;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .file-tree .dir { color: var(--accent); font-weight: 600; }
+  .file-tree .file { color: var(--text); }
+  .file-tree .comment { color: var(--text-dim); font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>Stack futuro — Bots Rincón del Mar</h1>
+<div class="subtitle">Cloudflare Workers (Hono + TypeScript) · bot.rincondelmar.club + pago.rincondelmar.club</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-box" style="background:#1a3047;border:1.5px solid var(--blue)"></div>ManyChat (sin cambio)</div>
+  <div class="legend-item"><div class="legend-box" style="background:#2a1e10;border:1.5px solid var(--cf)"></div>Cloudflare Worker</div>
+  <div class="legend-item"><div class="legend-box" style="background:#1f3022;border:1.5px solid var(--green)"></div>Anthropic LLM</div>
+  <div class="legend-item"><div class="legend-box" style="background:#1a2236;border:1.5px solid var(--accent)"></div>D1 (SQLite)</div>
+  <div class="legend-item"><div class="legend-box" style="background:#2a221b;border:1.5px solid var(--orange)"></div>KV cache</div>
+  <div class="legend-item"><div class="legend-box" style="background:#2a2418;border:1.5px solid var(--yellow)"></div>R2 bucket</div>
+  <div class="legend-item"><div class="legend-box" style="background:#2a1f23;border:1.5px solid var(--red)"></div>API externa</div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-value up">1</div>
+    <div class="stat-label">Worker monolítico</div>
+    <div class="stat-sub">+ Worker mínimo para pago</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value up">D1 + KV + R2</div>
+    <div class="stat-label">Storage</div>
+    <div class="stat-sub">Distribuido, low latency</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value up">&lt;2s</div>
+    <div class="stat-label">Latencia objetivo p50</div>
+    <div class="stat-sub">vs 10s actual</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value up">CI/CD</div>
+    <div class="stat-label">GitHub Actions</div>
+    <div class="stat-sub">lint + test + deploy</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value up">$0-10</div>
+    <div class="stat-label">Costo mensual</div>
+    <div class="stat-sub">Cloudflare free tier</div>
+  </div>
+</div>
+
+<div class="diagram">
+<svg viewBox="0 0 1400 1100" width="100%" style="max-width: 1400px;">
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L10,3.5 L0,7" fill="var(--accent)"/>
+  </marker>
+  <marker id="arrow-cf" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L10,3.5 L0,7" fill="var(--cf)"/>
+  </marker>
+</defs>
+
+<!-- ManyChat -->
+<rect x="40" y="40" width="220" height="120" rx="8" class="group-bg"/>
+<text x="50" y="60" class="group-title">CANALES + BSP</text>
+<rect x="60" y="80" width="180" height="60" rx="6" class="node-manychat"/>
+<text x="150" y="105" text-anchor="middle" class="node-label">ManyChat</text>
+<text x="150" y="122" text-anchor="middle" class="node-sub">WA · FB · IG · TikTok</text>
+<text x="150" y="135" text-anchor="middle" class="node-sub">sin cambios</text>
+
+<!-- bot.rincondelmar.club worker -->
+<rect x="320" y="40" width="800" height="540" rx="8" class="group-bg"/>
+<text x="330" y="60" class="group-title">bot.rincondelmar.club · CLOUDFLARE WORKER (Hono + TypeScript)</text>
+
+<!-- Entry routes -->
+<rect x="340" y="80" width="760" height="80" rx="6" class="node-worker"/>
+<text x="720" y="100" text-anchor="middle" class="node-label">Router (Hono)</text>
+<text x="720" y="118" text-anchor="middle" class="node-sub">POST /webhook/manychat · POST /webhook/mp · POST /webhook/beds24</text>
+<text x="720" y="134" text-anchor="middle" class="node-sub">GET /cron/knowledge · GET /health · /admin (auth)</text>
+<text x="720" y="150" text-anchor="middle" class="node-id">debounce 8s via KV · respond 200 inmediato · waitUntil background</text>
+
+<!-- Greeter module -->
+<rect x="340" y="180" width="370" height="180" rx="6" class="node-worker"/>
+<text x="525" y="200" text-anchor="middle" class="node-label">agents/greeter.ts</text>
+<text x="525" y="216" text-anchor="middle" class="node-id">Stage 1 + Stage 2 + calendar lookup</text>
+
+<rect x="360" y="230" width="150" height="40" rx="4" class="node-llm"/>
+<text x="435" y="247" text-anchor="middle" class="node-label" style="font-size:10px">Stage 1</text>
+<text x="435" y="260" text-anchor="middle" class="node-sub">extract_intent</text>
+
+<rect x="525" y="230" width="170" height="40" rx="4" class="node-llm"/>
+<text x="610" y="247" text-anchor="middle" class="node-label" style="font-size:10px">Stage 2</text>
+<text x="610" y="260" text-anchor="middle" class="node-sub">respond_to_user</text>
+
+<rect x="360" y="280" width="335" height="34" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="527" y="298" text-anchor="middle" class="node-sub">lib/calendar.ts → buildAvailabilityBlock()</text>
+<text x="527" y="310" text-anchor="middle" class="node-id">multi-room, override_rule v4 inline</text>
+
+<rect x="360" y="320" width="335" height="32" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="527" y="337" text-anchor="middle" class="node-sub">handoff → POST /internal/booker (auth shared secret)</text>
+
+<!-- Booker module -->
+<rect x="730" y="180" width="370" height="180" rx="6" class="node-worker"/>
+<text x="915" y="200" text-anchor="middle" class="node-label">agents/booker.ts</text>
+<text x="915" y="216" text-anchor="middle" class="node-id">+ hot-fix C + always-generate-block</text>
+
+<rect x="750" y="230" width="160" height="40" rx="4" class="node-llm"/>
+<text x="830" y="247" text-anchor="middle" class="node-label" style="font-size:10px">Stage 1</text>
+<text x="830" y="260" text-anchor="middle" class="node-sub">extract_booking_intent</text>
+
+<rect x="925" y="230" width="160" height="40" rx="4" class="node-llm"/>
+<text x="1005" y="247" text-anchor="middle" class="node-label" style="font-size:10px">Stage 2</text>
+<text x="1005" y="260" text-anchor="middle" class="node-sub">respond_to_user</text>
+
+<rect x="750" y="280" width="335" height="34" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="917" y="298" text-anchor="middle" class="node-sub">tools/beds24.createBooking()</text>
+<text x="917" y="310" text-anchor="middle" class="node-id">tools/mercadopago.createPaymentLink()</text>
+
+<rect x="750" y="320" width="335" height="32" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="917" y="337" text-anchor="middle" class="node-sub">lib/manychat.ts → SetCustomField + SendFlow</text>
+
+<!-- MP webhook handler -->
+<rect x="340" y="380" width="370" height="100" rx="6" class="node-worker"/>
+<text x="525" y="400" text-anchor="middle" class="node-label">routes/mp-webhook.ts</text>
+<text x="525" y="416" text-anchor="middle" class="node-id">POST /webhook/mp · HMAC SHA256</text>
+<text x="525" y="438" text-anchor="middle" class="node-sub">idempotency via D1 idempotency table</text>
+<text x="525" y="454" text-anchor="middle" class="node-sub">Beds24 PUT status=confirmed + invoiceItem</text>
+<text x="525" y="470" text-anchor="middle" class="node-sub">ManyChat notify cliente</text>
+
+<!-- Cron knowledge -->
+<rect x="730" y="380" width="370" height="100" rx="6" class="node-worker"/>
+<text x="915" y="400" text-anchor="middle" class="node-label">cron/knowledge.ts</text>
+<text x="915" y="416" text-anchor="middle" class="node-id">Cron Trigger 0 */2 * * *</text>
+<text x="915" y="438" text-anchor="middle" class="node-sub">GitHub raw → KV knowledge:*</text>
+<text x="915" y="454" text-anchor="middle" class="node-sub">Beds24 calendar → KV + R2</text>
+<text x="915" y="470" text-anchor="middle" class="node-sub">Token refresh si &lt;2h</text>
+
+<!-- Storage layer -->
+<rect x="340" y="500" width="760" height="70" rx="6" fill="var(--panel-2)" stroke="var(--border)" stroke-width="1"/>
+<text x="720" y="520" text-anchor="middle" class="node-label">Storage bindings</text>
+
+<rect x="360" y="530" width="160" height="32" rx="4" class="node-d1"/>
+<text x="440" y="551" text-anchor="middle" class="node-sub">D1: rdmbot-prod</text>
+
+<rect x="540" y="530" width="160" height="32" rx="4" class="node-kv"/>
+<text x="620" y="551" text-anchor="middle" class="node-sub">KV: KNOWLEDGE + SESSIONS</text>
+
+<rect x="720" y="530" width="180" height="32" rx="4" class="node-r2"/>
+<text x="810" y="551" text-anchor="middle" class="node-sub">R2: rdm-knowledge (existente)</text>
+
+<rect x="920" y="530" width="160" height="32" rx="4" fill="var(--panel)" stroke="var(--border)"/>
+<text x="1000" y="551" text-anchor="middle" class="node-sub">Wrangler Secrets</text>
+
+<!-- D1 detail -->
+<rect x="40" y="620" width="320" height="260" rx="8" class="group-bg"/>
+<text x="50" y="640" class="group-title">D1 · rdmbot-prod (SQLite)</text>
+
+<rect x="60" y="660" width="280" height="42" rx="6" class="node-d1"/>
+<text x="200" y="678" text-anchor="middle" class="node-label">conversations</text>
+<text x="200" y="694" text-anchor="middle" class="node-sub">subscriber_id, history, turn_count, bot_paused_until</text>
+
+<rect x="60" y="710" width="280" height="42" rx="6" class="node-d1"/>
+<text x="200" y="728" text-anchor="middle" class="node-label">bookings_log</text>
+<text x="200" y="744" text-anchor="middle" class="node-sub">id, beds24_id, mp_payment_id, status</text>
+
+<rect x="60" y="760" width="280" height="42" rx="6" class="node-d1"/>
+<text x="200" y="778" text-anchor="middle" class="node-label">idempotency</text>
+<text x="200" y="794" text-anchor="middle" class="node-sub">key (mp:id, etc), processed_at</text>
+
+<rect x="60" y="810" width="280" height="42" rx="6" class="node-d1"/>
+<text x="200" y="828" text-anchor="middle" class="node-label">debug_log</text>
+<text x="200" y="844" text-anchor="middle" class="node-sub">source, payload, ts (rotación 7d)</text>
+
+<!-- KV detail -->
+<rect x="390" y="620" width="320" height="260" rx="8" class="group-bg"/>
+<text x="400" y="640" class="group-title">KV NAMESPACES</text>
+
+<rect x="410" y="660" width="280" height="60" rx="6" class="node-kv"/>
+<text x="550" y="680" text-anchor="middle" class="node-label">KNOWLEDGE</text>
+<text x="550" y="697" text-anchor="middle" class="node-sub">system_prompt, system_prompt_booker</text>
+<text x="550" y="711" text-anchor="middle" class="node-sub">calendar_lookup, calendar_text</text>
+
+<rect x="410" y="730" width="280" height="60" rx="6" class="node-kv"/>
+<text x="550" y="750" text-anchor="middle" class="node-label">SESSIONS</text>
+<text x="550" y="767" text-anchor="middle" class="node-sub">debounce:{sub_id} (TTL 8s)</text>
+<text x="550" y="781" text-anchor="middle" class="node-sub">rate_limit:{sub_id}</text>
+
+<rect x="410" y="800" width="280" height="60" rx="6" class="node-r2"/>
+<text x="550" y="820" text-anchor="middle" class="node-label">R2 · rdm-knowledge (existente)</text>
+<text x="550" y="837" text-anchor="middle" class="node-sub">availability.json, prices.json</text>
+<text x="550" y="851" text-anchor="middle" class="node-sub">refresh cada 2h vía cron</text>
+
+<!-- External APIs -->
+<rect x="740" y="620" width="380" height="260" rx="8" class="group-bg"/>
+<text x="750" y="640" class="group-title">APIs EXTERNAS (sin cambios)</text>
+
+<rect x="760" y="660" width="170" height="50" rx="4" class="node-ext"/>
+<text x="845" y="680" text-anchor="middle" class="node-label" style="font-size:10px">Anthropic API</text>
+<text x="845" y="695" text-anchor="middle" class="node-sub">Haiku 4.5 + prompt caching</text>
+
+<rect x="940" y="660" width="170" height="50" rx="4" class="node-ext"/>
+<text x="1025" y="680" text-anchor="middle" class="node-label" style="font-size:10px">Beds24 v2</text>
+<text x="1025" y="695" text-anchor="middle" class="node-sub">calendar + bookings</text>
+
+<rect x="760" y="720" width="170" height="50" rx="4" class="node-ext"/>
+<text x="845" y="740" text-anchor="middle" class="node-label" style="font-size:10px">MercadoPago</text>
+<text x="845" y="755" text-anchor="middle" class="node-sub">preferences + payments</text>
+
+<rect x="940" y="720" width="170" height="50" rx="4" class="node-ext"/>
+<text x="1025" y="740" text-anchor="middle" class="node-label" style="font-size:10px">ManyChat API</text>
+<text x="1025" y="755" text-anchor="middle" class="node-sub">SetField + SendFlow</text>
+
+<rect x="760" y="780" width="350" height="60" rx="6" class="node-gh"/>
+<text x="935" y="800" text-anchor="middle" class="node-label">GitHub: alexanderhorn6720/rincondelmar-bot</text>
+<text x="935" y="817" text-anchor="middle" class="node-sub">knowledge/*.json, prompts, src/, scripts/</text>
+<text x="935" y="833" text-anchor="middle" class="node-sub">GitHub Actions: deploy on merge to main</text>
+
+<!-- pago.rincondelmar.club -->
+<rect x="40" y="910" width="320" height="160" rx="8" class="group-bg"/>
+<text x="50" y="930" class="group-title">pago.rincondelmar.club · WORKER MÍNIMO</text>
+
+<rect x="60" y="950" width="280" height="100" rx="6" class="node-worker"/>
+<text x="200" y="970" text-anchor="middle" class="node-label">workers/pago</text>
+<text x="200" y="987" text-anchor="middle" class="node-sub">POST /webhook/mp → forward bot</text>
+<text x="200" y="1001" text-anchor="middle" class="node-sub">GET /exitoso · /fallido · /pendiente</text>
+<text x="200" y="1015" text-anchor="middle" class="node-sub">páginas HTML estáticas servidas</text>
+<text x="200" y="1035" text-anchor="middle" class="node-id">o consolidado en bot worker via hostname routing</text>
+
+<!-- Flow arrows -->
+<!-- ManyChat → Worker -->
+<path d="M 240 110 L 340 110" class="flow"/>
+<text x="280" y="103" class="flow-label">webhook</text>
+
+<!-- Router → Greeter -->
+<path d="M 460 160 L 460 180" class="flow"/>
+<text x="430" y="173" class="flow-label">greeter</text>
+
+<!-- Router → Booker -->
+<path d="M 900 160 L 900 180" class="flow"/>
+<text x="870" y="173" class="flow-label">booker</text>
+
+<!-- Greeter handoff → Booker -->
+<path d="M 700 320 L 770 250" class="flow"/>
+<text x="700" y="270" class="flow-label">handoff</text>
+
+<!-- Greeter ↔ Anthropic -->
+<path d="M 435 270 Q 200 620 760 685" class="flow flow-async"/>
+
+<!-- Booker ↔ Anthropic -->
+<path d="M 830 270 Q 850 600 845 685" class="flow flow-async"/>
+
+<!-- Booker → Beds24 -->
+<path d="M 1000 314 L 1025 660" class="flow flow-async"/>
+
+<!-- Booker → MP -->
+<path d="M 1000 314 L 920 720" class="flow flow-async"/>
+
+<!-- MP webhook → Beds24 -->
+<path d="M 600 480 Q 800 540 1000 660" class="flow flow-async"/>
+
+<!-- Cron → KV + R2 -->
+<path d="M 915 480 L 620 530" class="flow-cron"/>
+<path d="M 980 480 L 810 530" class="flow-cron"/>
+<text x="800" y="500" class="flow-label">cron 2h</text>
+
+<!-- Cron → GitHub -->
+<path d="M 915 480 Q 945 650 850 780" class="flow flow-async"/>
+
+<!-- D1 connections -->
+<path d="M 440 555 L 200 660" class="flow flow-async"/>
+
+<!-- KV connections -->
+<path d="M 620 555 L 550 660" class="flow flow-async"/>
+
+<!-- pago worker → bot worker -->
+<path d="M 340 1000 Q 320 600 525 480" class="flow flow-async"/>
+
+<!-- Flow types legend -->
+<text x="40" y="1100" class="group-title">FLUJOS</text>
+<line x1="100" y1="1098" x2="140" y2="1098" stroke="var(--accent)" stroke-width="1.5"/>
+<text x="150" y="1102" fill="var(--text-dim)" font-size="11">HTTP request</text>
+<line x1="280" y1="1098" x2="320" y2="1098" stroke="var(--text-dim)" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="330" y="1102" fill="var(--text-dim)" font-size="11">Storage / API call</text>
+<line x1="470" y1="1098" x2="510" y2="1098" stroke="var(--cf)" stroke-width="1.5"/>
+<text x="520" y="1102" fill="var(--text-dim)" font-size="11">Cron trigger</text>
+
+</svg>
+</div>
+
+<h2>Cambios componente por componente</h2>
+<table>
+  <thead>
+    <tr><th style="width:280px">Componente actual (Make)</th><th>Reemplazo futuro</th><th style="width:120px">Tipo</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="dim">scn 4706679 wh:bot-router</td>
+      <td><code>src/routes/manychat.ts</code> + <code>agents/router.ts</code></td>
+      <td><span class="pill pill-new">migrar</span></td>
+    </tr>
+    <tr>
+      <td class="dim">scn 4716928 wh:bot-greeter</td>
+      <td><code>src/agents/greeter.ts</code></td>
+      <td><span class="pill pill-new">migrar</span></td>
+    </tr>
+    <tr>
+      <td class="dim">scn 4724250 wh:bot-booker</td>
+      <td><code>src/agents/booker.ts</code> con hot-fix C portado</td>
+      <td><span class="pill pill-new">migrar</span></td>
+    </tr>
+    <tr>
+      <td class="dim">scn 4704931 wh:tool-executor</td>
+      <td><code>src/lib/beds24.ts</code> + <code>src/lib/mercadopago.ts</code></td>
+      <td><span class="pill pill-new">migrar</span></td>
+    </tr>
+    <tr>
+      <td class="dim">scn 4716901 sub:knowledge-refresh</td>
+      <td><code>src/cron/knowledge.ts</code> + Cron Trigger</td>
+      <td><span class="pill pill-new">migrar</span></td>
+    </tr>
+    <tr>
+      <td class="dim">scn 4709161 wh:mp-listener</td>
+      <td><code>src/routes/mp-webhook.ts</code></td>
+      <td><span class="pill pill-new">migrar</span></td>
+    </tr>
+    <tr>
+      <td class="dim">scn 4709131 sub:mp-confirm-payment</td>
+      <td>Función <code>confirmBooking()</code> en lib/beds24.ts</td>
+      <td><span class="pill pill-new">migrar</span></td>
+    </tr>
+    <tr>
+      <td class="dim">DS 85638 rdmbot_knowledge_v2</td>
+      <td>KV <code>KNOWLEDGE</code> namespace</td>
+      <td><span class="pill pill-cf">CF nuevo</span></td>
+    </tr>
+    <tr>
+      <td class="dim">DS 85639 rdmbot_conversations_v2</td>
+      <td>D1 tabla <code>conversations</code></td>
+      <td><span class="pill pill-cf">CF nuevo</span></td>
+    </tr>
+    <tr>
+      <td class="dim">DS 85643 rdmbot_secrets</td>
+      <td>Wrangler secrets + D1 <code>secrets</code> (rotables)</td>
+      <td><span class="pill pill-cf">CF nuevo</span></td>
+    </tr>
+    <tr>
+      <td class="dim">DS 85380 beds24_auth</td>
+      <td>D1 <code>secrets</code> key=beds24_auth</td>
+      <td><span class="pill pill-cf">CF nuevo</span></td>
+    </tr>
+    <tr>
+      <td class="dim">R2 rdm-knowledge bucket</td>
+      <td>Sin cambios (ya en Cloudflare)</td>
+      <td><span class="pill pill-keep">mantener</span></td>
+    </tr>
+    <tr>
+      <td class="dim">GitHub repo rdm-greeter-kb</td>
+      <td>Renombrar / crear nuevo <code>rincondelmar-bot</code></td>
+      <td><span class="pill pill-keep">mantener</span></td>
+    </tr>
+    <tr>
+      <td class="dim">ManyChat (BSP + custom fields)</td>
+      <td>Sin cambios. Solo cambia URL del external request</td>
+      <td><span class="pill pill-keep">mantener</span></td>
+    </tr>
+    <tr>
+      <td class="dim">Anthropic API + Beds24 + MP</td>
+      <td>Sin cambios</td>
+      <td><span class="pill pill-keep">mantener</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Estructura de archivos esperada</h2>
+<div class="file-tree"><span class="dir">rincondelmar-bot/</span>
+├── <span class="file">README.md</span>
+├── <span class="file">wrangler.toml</span>               <span class="comment"># bindings KV, D1, R2, secrets, cron triggers</span>
+├── <span class="file">package.json</span>                <span class="comment"># hono, zod, vitest, wrangler</span>
+├── <span class="file">tsconfig.json</span>
+├── <span class="file">biome.json</span>                  <span class="comment"># lint/format</span>
+├── <span class="dir">.github/workflows/</span>
+│   ├── <span class="file">ci.yml</span>                  <span class="comment"># PR: lint + test</span>
+│   └── <span class="file">deploy.yml</span>              <span class="comment"># merge main: deploy production</span>
+├── <span class="dir">src/</span>
+│   ├── <span class="file">index.ts</span>                <span class="comment"># Hono app, route registration</span>
+│   ├── <span class="dir">routes/</span>
+│   │   ├── <span class="file">manychat.ts</span>         <span class="comment"># POST /webhook/manychat</span>
+│   │   ├── <span class="file">mp-webhook.ts</span>       <span class="comment"># POST /webhook/mp</span>
+│   │   ├── <span class="file">beds24-webhook.ts</span>   <span class="comment"># POST /webhook/beds24 (futuro)</span>
+│   │   ├── <span class="file">health.ts</span>
+│   │   └── <span class="file">admin.ts</span>
+│   ├── <span class="dir">agents/</span>
+│   │   ├── <span class="file">router.ts</span>           <span class="comment"># debounce + agent routing</span>
+│   │   ├── <span class="file">greeter.ts</span>          <span class="comment"># stage1 + calendar + stage2 + handoff</span>
+│   │   └── <span class="file">booker.ts</span>           <span class="comment"># stage1 + calendar + stage2 + booking</span>
+│   ├── <span class="dir">lib/</span>
+│   │   ├── <span class="file">anthropic.ts</span>        <span class="comment"># API wrapper, prompt caching</span>
+│   │   ├── <span class="file">manychat.ts</span>         <span class="comment"># SetCustomField, SendFlow</span>
+│   │   ├── <span class="file">beds24.ts</span>           <span class="comment"># calendar, bookings, token refresh</span>
+│   │   ├── <span class="file">mercadopago.ts</span>      <span class="comment"># checkout preferences, payment status</span>
+│   │   ├── <span class="file">github.ts</span>           <span class="comment"># raw fetch</span>
+│   │   ├── <span class="file">calendar.ts</span>         <span class="comment"># lookup + multi-room block builder</span>
+│   │   ├── <span class="file">prompts.ts</span>          <span class="comment"># override_rule v4, stage1 systems</span>
+│   │   ├── <span class="file">debounce.ts</span>         <span class="comment"># KV-based 8s</span>
+│   │   └── <span class="file">crypto.ts</span>           <span class="comment"># HMAC SHA256, AWS Sig V4 (R2)</span>
+│   ├── <span class="dir">cron/</span>
+│   │   ├── <span class="file">knowledge.ts</span>        <span class="comment"># 2h refresh KV + R2</span>
+│   │   └── <span class="file">beds24-token.ts</span>     <span class="comment"># token refresh job</span>
+│   ├── <span class="dir">db/</span>
+│   │   ├── <span class="file">client.ts</span>           <span class="comment"># D1 wrapper, prepared statements</span>
+│   │   ├── <span class="file">schema.sql</span>
+│   │   └── <span class="dir">migrations/</span>
+│   └── <span class="dir">types/</span>
+│       └── *.ts                  <span class="comment"># Zod schemas para payloads</span>
+├── <span class="dir">tests/</span>
+│   ├── <span class="file">greeter.test.ts</span>         <span class="comment"># 7 QA cases</span>
+│   ├── <span class="file">booker.test.ts</span>
+│   ├── <span class="file">calendar.test.ts</span>
+│   ├── <span class="file">mp-webhook.test.ts</span>      <span class="comment"># HMAC validation</span>
+│   └── <span class="dir">fixtures/</span>
+├── <span class="dir">knowledge/</span>                   <span class="comment"># sync con GitHub raw, leídos en cron</span>
+│   ├── <span class="file">system-prompt.txt</span>
+│   ├── <span class="file">system-prompt-booker.txt</span>
+│   └── <span class="dir">properties/</span>
+├── <span class="dir">migration-plan/</span>              <span class="comment"># ESTE FOLDER</span>
+│   ├── <span class="file">MIGRATION_PLAN.md</span>
+│   ├── <span class="file">current_stack.html</span>
+│   ├── <span class="file">future_stack.html</span>
+│   ├── <span class="file">CLAUDE_CODE_BRIEF.md</span>
+│   └── <span class="file">QUESTIONS.md</span>
+├── <span class="dir">docs/</span>
+│   ├── <span class="file">architecture.md</span>
+│   ├── <span class="file">runbook.md</span>
+│   └── <span class="dir">decisions/</span>               <span class="comment"># ADRs</span>
+└── <span class="dir">scripts/</span>
+    ├── <span class="file">seed-d1.ts</span>              <span class="comment"># migra DS 85639 → D1</span>
+    └── <span class="file">seed-kv.ts</span>              <span class="comment"># seed inicial KV desde DS 85638</span>
+</div>
+
+</body>
+</html>

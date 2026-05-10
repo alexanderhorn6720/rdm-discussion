@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Stack actual — Bots RdM (Make.com)</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: #121826;
+    --panel-2: #1a2236;
+    --border: #2a3447;
+    --text: #e5e9f2;
+    --text-dim: #8b95a8;
+    --accent: #7c9eff;
+    --green: #5fd28d;
+    --yellow: #f5c869;
+    --red: #ef6b75;
+    --blue: #5fb3e9;
+    --purple: #b48cd9;
+    --orange: #f0915b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "SF Pro Display", "Inter", system-ui, sans-serif;
+    line-height: 1.5;
+    padding: 32px;
+    font-size: 13px;
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 4px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-box {
+    width: 12px; height: 12px; border-radius: 2px;
+  }
+  .diagram {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  svg { display: block; margin: 0 auto; }
+  .node {
+    fill: var(--panel-2);
+    stroke: var(--border);
+    stroke-width: 1.5;
+  }
+  .node-manychat { fill: #1a3047; stroke: var(--blue); }
+  .node-make { fill: #2a2640; stroke: var(--purple); }
+  .node-llm { fill: #1f3022; stroke: var(--green); }
+  .node-ds { fill: #2a2418; stroke: var(--yellow); }
+  .node-ext { fill: #2a1f23; stroke: var(--red); }
+  .node-r2 { fill: #2a221b; stroke: var(--orange); }
+  .node-label {
+    fill: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .node-sub {
+    fill: var(--text-dim);
+    font-size: 10px;
+    font-family: inherit;
+  }
+  .node-id {
+    fill: var(--text-dim);
+    font-size: 9px;
+    font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+  }
+  .flow {
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    fill: none;
+    marker-end: url(#arrow);
+  }
+  .flow-async {
+    stroke: var(--text-dim);
+    stroke-dasharray: 4 3;
+  }
+  .flow-error { stroke: var(--red); stroke-dasharray: 2 2; }
+  .flow-label {
+    fill: var(--text-dim);
+    font-size: 9px;
+    font-family: "SF Mono", monospace;
+  }
+  .group-bg {
+    fill: rgba(255,255,255,0.02);
+    stroke: var(--border);
+    stroke-dasharray: 4 3;
+  }
+  .group-title {
+    fill: var(--text-dim);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 12px;
+  }
+  th {
+    background: var(--panel-2);
+    color: var(--text-dim);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  td.id, td.url { font-family: "SF Mono", monospace; font-size: 11px; color: var(--accent); }
+  td.dim { color: var(--text-dim); }
+  .status-ok { color: var(--green); }
+  .status-warn { color: var(--yellow); }
+  .status-error { color: var(--red); }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--panel-2);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .pill-ok { background: rgba(95, 210, 141, 0.15); color: var(--green); }
+  .pill-warn { background: rgba(245, 200, 105, 0.15); color: var(--yellow); }
+  .pill-error { background: rgba(239, 107, 117, 0.15); color: var(--red); }
+  h2 {
+    font-size: 17px;
+    margin-top: 32px;
+    margin-bottom: 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stat-sub { font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+  code {
+    font-family: "SF Mono", monospace;
+    background: var(--panel-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<h1>Stack actual — Bots Rincón del Mar</h1>
+<div class="subtitle">Make.com folder 316545 · Datos verificados 2026-05-10</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-box" style="background:#1a3047;border:1.5px solid var(--blue)"></div>ManyChat</div>
+  <div class="legend-item"><div class="legend-box" style="background:#2a2640;border:1.5px solid var(--purple)"></div>Make scenario</div>
+  <div class="legend-item"><div class="legend-box" style="background:#1f3022;border:1.5px solid var(--green)"></div>Anthropic LLM</div>
+  <div class="legend-item"><div class="legend-box" style="background:#2a2418;border:1.5px solid var(--yellow)"></div>Datastore Make</div>
+  <div class="legend-item"><div class="legend-box" style="background:#2a1f23;border:1.5px solid var(--red)"></div>API externa</div>
+  <div class="legend-item"><div class="legend-box" style="background:#2a221b;border:1.5px solid var(--orange)"></div>R2 / GitHub</div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-value">16</div>
+    <div class="stat-label">Scenarios activos</div>
+    <div class="stat-sub">+ 2 paused, 1 deprecated</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">5</div>
+    <div class="stat-label">Datastores</div>
+    <div class="stat-sub">85638, 85639, 85643, 85380, 85677</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">~10s</div>
+    <div class="stat-label">Latencia turno LLM</div>
+    <div class="stat-sub">p50 medido en últimas 50 ejec</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">~14</div>
+    <div class="stat-label">Operations / turno</div>
+    <div class="stat-sub">Greeter sin handoff</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">$30-80</div>
+    <div class="stat-label">Costo Make mensual</div>
+    <div class="stat-sub">Estimado, sube con volumen</div>
+  </div>
+</div>
+
+<div class="diagram">
+<svg viewBox="0 0 1400 1100" width="100%" style="max-width: 1400px;">
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L10,3.5 L0,7" fill="var(--accent)"/>
+  </marker>
+  <marker id="arrow-dim" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+    <path d="M0,0 L10,3.5 L0,7" fill="var(--text-dim)"/>
+  </marker>
+</defs>
+
+<!-- ManyChat group -->
+<rect x="40" y="40" width="220" height="120" rx="8" class="group-bg"/>
+<text x="50" y="60" class="group-title">CANALES + BSP</text>
+<rect x="60" y="80" width="180" height="60" rx="6" class="node node-manychat"/>
+<text x="150" y="105" text-anchor="middle" class="node-label">ManyChat</text>
+<text x="150" y="122" text-anchor="middle" class="node-sub">WA · FB · IG · TikTok</text>
+<text x="150" y="135" text-anchor="middle" class="node-id">conn 4268288</text>
+
+<!-- Make Router -->
+<rect x="320" y="40" width="280" height="120" rx="8" class="group-bg"/>
+<text x="330" y="60" class="group-title">ENTRY · ROUTER</text>
+<rect x="340" y="80" width="240" height="60" rx="6" class="node node-make"/>
+<text x="460" y="100" text-anchor="middle" class="node-label">wh:bot-router</text>
+<text x="460" y="116" text-anchor="middle" class="node-sub">debounce + route greeter|booker</text>
+<text x="460" y="132" text-anchor="middle" class="node-id">scn 4706679 · hook 2701005</text>
+
+<!-- Agents group -->
+<rect x="320" y="200" width="780" height="280" rx="8" class="group-bg"/>
+<text x="330" y="220" class="group-title">AGENTES LLM</text>
+
+<!-- Greeter -->
+<rect x="340" y="240" width="340" height="220" rx="6" class="node node-make"/>
+<text x="510" y="262" text-anchor="middle" class="node-label">wh:bot-greeter</text>
+<text x="510" y="278" text-anchor="middle" class="node-id">scn 4716928 · hook 2706153</text>
+
+<rect x="360" y="295" width="140" height="50" rx="4" class="node node-llm"/>
+<text x="430" y="315" text-anchor="middle" class="node-label" style="font-size:10px">Stage 1</text>
+<text x="430" y="330" text-anchor="middle" class="node-sub">extract_intent</text>
+
+<rect x="520" y="295" width="140" height="50" rx="4" class="node node-llm"/>
+<text x="590" y="315" text-anchor="middle" class="node-label" style="font-size:10px">Stage 2</text>
+<text x="590" y="330" text-anchor="middle" class="node-sub">respond_to_user</text>
+
+<rect x="360" y="360" width="300" height="42" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="510" y="378" text-anchor="middle" class="node-sub">Code: calendar_lookup multi-room</text>
+<text x="510" y="392" text-anchor="middle" class="node-id">availability_check block</text>
+
+<rect x="360" y="412" width="300" height="38" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="510" y="430" text-anchor="middle" class="node-sub">handoff_booking → POST hook booker</text>
+<text x="510" y="444" text-anchor="middle" class="node-id">v4: Code module + escapeJSON fix</text>
+
+<!-- Booker -->
+<rect x="720" y="240" width="360" height="220" rx="6" class="node node-make"/>
+<text x="900" y="262" text-anchor="middle" class="node-label">wh:bot-booker</text>
+<text x="900" y="278" text-anchor="middle" class="node-id">scn 4724250 · hook 2710263</text>
+
+<rect x="740" y="295" width="160" height="50" rx="4" class="node node-llm"/>
+<text x="820" y="315" text-anchor="middle" class="node-label" style="font-size:10px">Stage 1</text>
+<text x="820" y="330" text-anchor="middle" class="node-sub">extract_booking_intent</text>
+
+<rect x="920" y="295" width="140" height="50" rx="4" class="node node-llm"/>
+<text x="990" y="315" text-anchor="middle" class="node-label" style="font-size:10px">Stage 2</text>
+<text x="990" y="330" text-anchor="middle" class="node-sub">respond_to_user</text>
+
+<rect x="740" y="360" width="320" height="42" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="900" y="378" text-anchor="middle" class="node-sub">Code: hot-fix C always-generate-block</text>
+<text x="900" y="392" text-anchor="middle" class="node-id">override_rule v4 anti-hallucination</text>
+
+<rect x="740" y="412" width="320" height="38" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="900" y="430" text-anchor="middle" class="node-sub">create_booking → tool-executor</text>
+<text x="900" y="444" text-anchor="middle" class="node-id">build success reply con MP link</text>
+
+<!-- Datastores -->
+<rect x="40" y="520" width="540" height="160" rx="8" class="group-bg"/>
+<text x="50" y="540" class="group-title">DATASTORES MAKE</text>
+
+<rect x="60" y="560" width="160" height="100" rx="6" class="node node-ds"/>
+<text x="140" y="582" text-anchor="middle" class="node-label">rdmbot_knowledge_v2</text>
+<text x="140" y="598" text-anchor="middle" class="node-id">DS 85638</text>
+<text x="140" y="616" text-anchor="middle" class="node-sub">system_prompt</text>
+<text x="140" y="630" text-anchor="middle" class="node-sub">calendar_lookup</text>
+<text x="140" y="644" text-anchor="middle" class="node-sub">calendar_text</text>
+
+<rect x="240" y="560" width="160" height="100" rx="6" class="node node-ds"/>
+<text x="320" y="582" text-anchor="middle" class="node-label">rdmbot_conversations</text>
+<text x="320" y="598" text-anchor="middle" class="node-id">DS 85639</text>
+<text x="320" y="616" text-anchor="middle" class="node-sub">history (per s-id)</text>
+<text x="320" y="630" text-anchor="middle" class="node-sub">turn_count</text>
+<text x="320" y="644" text-anchor="middle" class="node-sub">bot_paused_until</text>
+
+<rect x="420" y="560" width="140" height="100" rx="6" class="node node-ds"/>
+<text x="490" y="582" text-anchor="middle" class="node-label">rdmbot_secrets</text>
+<text x="490" y="598" text-anchor="middle" class="node-id">DS 85643</text>
+<text x="490" y="616" text-anchor="middle" class="node-sub">anthropic_key</text>
+<text x="490" y="630" text-anchor="middle" class="node-sub">mp_token + sec</text>
+<text x="490" y="644" text-anchor="middle" class="node-sub">r2_creds, etc.</text>
+
+<rect x="60" y="685" width="160" height="60" rx="6" class="node node-ds"/>
+<text x="140" y="707" text-anchor="middle" class="node-label">beds24_auth</text>
+<text x="140" y="723" text-anchor="middle" class="node-id">DS 85380</text>
+<text x="140" y="738" text-anchor="middle" class="node-sub">access + refresh token</text>
+
+<!-- Knowledge refresh -->
+<rect x="620" y="520" width="280" height="160" rx="8" class="group-bg"/>
+<text x="630" y="540" class="group-title">KNOWLEDGE REFRESH · CRON 2h</text>
+
+<rect x="640" y="560" width="240" height="42" rx="4" class="node node-make"/>
+<text x="760" y="580" text-anchor="middle" class="node-label">cron:knowledge-refresh</text>
+<text x="760" y="595" text-anchor="middle" class="node-id">scn 4719360</text>
+
+<rect x="640" y="612" width="240" height="42" rx="4" class="node node-make"/>
+<text x="760" y="632" text-anchor="middle" class="node-label">sub:knowledge-refresh-core</text>
+<text x="760" y="647" text-anchor="middle" class="node-id">scn 4716901</text>
+
+<text x="760" y="675" text-anchor="middle" class="node-sub">refresh 365 días</text>
+
+<!-- Tool executor -->
+<rect x="940" y="520" width="240" height="160" rx="8" class="group-bg"/>
+<text x="950" y="540" class="group-title">TOOL EXECUTOR</text>
+
+<rect x="960" y="560" width="200" height="60" rx="6" class="node node-make"/>
+<text x="1060" y="582" text-anchor="middle" class="node-label">wh:tool-executor</text>
+<text x="1060" y="600" text-anchor="middle" class="node-id">scn 4704931</text>
+<text x="1060" y="614" text-anchor="middle" class="node-sub">beds24 + mp wrapper</text>
+
+<rect x="960" y="630" width="200" height="42" rx="4" fill="var(--panel)" stroke="var(--border)" stroke-width="1"/>
+<text x="1060" y="650" text-anchor="middle" class="node-sub">create_booking</text>
+<text x="1060" y="664" text-anchor="middle" class="node-sub">send_payment_link</text>
+
+<!-- MP listener -->
+<rect x="40" y="780" width="540" height="160" rx="8" class="group-bg"/>
+<text x="50" y="800" class="group-title">MERCADOPAGO WEBHOOK</text>
+
+<rect x="60" y="820" width="240" height="100" rx="6" class="node node-make"/>
+<text x="180" y="842" text-anchor="middle" class="node-label">wh:mp-listener</text>
+<text x="180" y="858" text-anchor="middle" class="node-id">scn 4709161 · hook 2702173</text>
+<text x="180" y="878" text-anchor="middle" class="node-sub">HMAC SHA256 validation</text>
+<text x="180" y="892" text-anchor="middle" class="node-sub">idempotency mp_proc_*</text>
+<text x="180" y="906" text-anchor="middle" class="node-sub">filter approved + type=payment</text>
+
+<rect x="320" y="820" width="240" height="100" rx="6" class="node node-make"/>
+<text x="440" y="842" text-anchor="middle" class="node-label">sub:mp-confirm-payment</text>
+<text x="440" y="858" text-anchor="middle" class="node-id">scn 4709131</text>
+<text x="440" y="878" text-anchor="middle" class="node-sub">PUT beds24 status=confirmed</text>
+<text x="440" y="892" text-anchor="middle" class="node-sub">+ invoiceItem payment</text>
+<text x="440" y="906" text-anchor="middle" class="node-sub">notify ManyChat</text>
+
+<!-- External APIs -->
+<rect x="620" y="780" width="280" height="160" rx="8" class="group-bg"/>
+<text x="630" y="800" class="group-title">APIs EXTERNAS</text>
+
+<rect x="640" y="820" width="100" height="50" rx="4" class="node node-ext"/>
+<text x="690" y="840" text-anchor="middle" class="node-label" style="font-size:10px">Anthropic</text>
+<text x="690" y="855" text-anchor="middle" class="node-sub">Haiku 4.5</text>
+
+<rect x="760" y="820" width="120" height="50" rx="4" class="node node-ext"/>
+<text x="820" y="840" text-anchor="middle" class="node-label" style="font-size:10px">Beds24 v2</text>
+<text x="820" y="855" text-anchor="middle" class="node-sub">propertyId 31862</text>
+
+<rect x="640" y="880" width="240" height="50" rx="4" class="node node-ext"/>
+<text x="760" y="900" text-anchor="middle" class="node-label" style="font-size:10px">MercadoPago API</text>
+<text x="760" y="915" text-anchor="middle" class="node-sub">checkout preferences + webhooks</text>
+
+<!-- Storage -->
+<rect x="940" y="780" width="240" height="160" rx="8" class="group-bg"/>
+<text x="950" y="800" class="group-title">STORAGE EXTERNO</text>
+
+<rect x="960" y="820" width="200" height="50" rx="4" class="node node-r2"/>
+<text x="1060" y="840" text-anchor="middle" class="node-label" style="font-size:10px">Cloudflare R2</text>
+<text x="1060" y="855" text-anchor="middle" class="node-sub">rdm-knowledge bucket</text>
+
+<rect x="960" y="880" width="200" height="50" rx="4" class="node node-r2"/>
+<text x="1060" y="900" text-anchor="middle" class="node-label" style="font-size:10px">GitHub raw</text>
+<text x="1060" y="915" text-anchor="middle" class="node-sub">alexanderhorn6720/rdm-greeter-kb</text>
+
+<!-- Flow arrows -->
+<!-- ManyChat → Router -->
+<path d="M 240 110 L 340 110" class="flow"/>
+<text x="280" y="103" class="flow-label">webhook</text>
+
+<!-- Router → Greeter -->
+<path d="M 460 140 L 460 180 L 460 240" class="flow"/>
+<text x="385" y="170" class="flow-label">greeter</text>
+
+<!-- Router → Booker -->
+<path d="M 580 140 Q 700 180 800 240" class="flow"/>
+<text x="700" y="200" class="flow-label">booker</text>
+
+<!-- Greeter handoff → Booker -->
+<path d="M 660 432 Q 700 470 740 432" class="flow"/>
+<text x="685" y="475" class="flow-label">handoff</text>
+
+<!-- Greeter ↔ Anthropic -->
+<path d="M 440 295 Q 380 250 480 100" class="flow flow-async"/>
+
+<!-- Booker → Tool executor -->
+<path d="M 1000 450 L 1000 520" class="flow"/>
+<text x="1010" y="490" class="flow-label">tool calls</text>
+
+<!-- Tool executor → APIs -->
+<path d="M 960 590 Q 880 700 820 820" class="flow"/>
+<path d="M 1060 680 Q 1060 730 800 880" class="flow"/>
+
+<!-- MP webhook → MP confirm -->
+<path d="M 300 870 L 320 870" class="flow"/>
+
+<!-- MP confirm → Beds24 -->
+<path d="M 560 870 Q 600 870 760 870" class="flow"/>
+
+<!-- Knowledge refresh → R2 -->
+<path d="M 880 620 Q 920 680 960 830" class="flow"/>
+
+<!-- Knowledge refresh → GitHub (read) -->
+<path d="M 880 600 Q 1000 720 1000 890" class="flow flow-async"/>
+
+<!-- Datastore connections (dashed) -->
+<path d="M 460 460 Q 250 480 220 560" class="flow flow-async"/>
+<path d="M 900 460 Q 600 490 360 560" class="flow flow-async"/>
+<path d="M 1060 600 Q 800 580 520 580" class="flow flow-async"/>
+<path d="M 760 670 Q 350 700 220 685" class="flow flow-async"/>
+
+<!-- Title for flow types -->
+<text x="40" y="1010" class="group-title">FLUJOS</text>
+<line x1="40" y1="1020" x2="80" y2="1020" stroke="var(--accent)" stroke-width="1.5"/>
+<text x="90" y="1024" fill="var(--text-dim)" font-size="11">Síncrono (HTTP)</text>
+<line x1="220" y1="1020" x2="260" y2="1020" stroke="var(--text-dim)" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="270" y="1024" fill="var(--text-dim)" font-size="11">Read/Write a storage</text>
+
+</svg>
+</div>
+
+<h2>Scenarios Make activos</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:90px">ID</th>
+      <th>Nombre</th>
+      <th>Hook URL (truncado)</th>
+      <th style="width:80px">Status</th>
+      <th style="width:160px">Función</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="id">4706679</td>
+      <td>wh:bot-router</td>
+      <td class="url">r5fnaxxr… (2701005)</td>
+      <td><span class="pill pill-ok">activo</span></td>
+      <td class="dim">Entry ManyChat, routing</td>
+    </tr>
+    <tr>
+      <td class="id">4716928</td>
+      <td>wh:bot-greeter</td>
+      <td class="url">d1g8lv849dtm9jcs2wkmx1adh3bybssb</td>
+      <td><span class="pill pill-ok">activo</span></td>
+      <td class="dim">LLM 2-stage + handoff</td>
+    </tr>
+    <tr>
+      <td class="id">4724250</td>
+      <td>wh:bot-booker</td>
+      <td class="url">u3866vgqe0zlq7ry4q3ffuzekwyck1rc</td>
+      <td><span class="pill pill-ok">activo</span></td>
+      <td class="dim">LLM + Beds24 + MP</td>
+    </tr>
+    <tr>
+      <td class="id">4704931</td>
+      <td>wh:tool-executor</td>
+      <td class="url">kdqls4kim0imdgpnhioaffvurlyd2lc4</td>
+      <td><span class="pill pill-ok">activo</span></td>
+      <td class="dim">Beds24 + MP wrapper</td>
+    </tr>
+    <tr>
+      <td class="id">4716901</td>
+      <td>sub:knowledge-refresh-core</td>
+      <td class="dim">(call from cron)</td>
+      <td><span class="pill pill-ok">activo</span></td>
+      <td class="dim">Refresh KB + calendar</td>
+    </tr>
+    <tr>
+      <td class="id">4719360</td>
+      <td>cron:knowledge-refresh</td>
+      <td class="dim">(cron 2h)</td>
+      <td><span class="pill pill-ok">activo</span></td>
+      <td class="dim">Trigger parent</td>
+    </tr>
+    <tr>
+      <td class="id">4709161</td>
+      <td>wh:mp-listener</td>
+      <td class="url">jvko9llvcb8ev8607r6t19g1olkbp2f5</td>
+      <td><span class="pill pill-ok">activo</span></td>
+      <td class="dim">MP webhook + HMAC</td>
+    </tr>
+    <tr>
+      <td class="id">4709131</td>
+      <td>sub:mp-confirm-payment</td>
+      <td class="url">u0tvm1wfgwtps06qffaf62ffys7lak5r</td>
+      <td><span class="pill pill-ok">activo</span></td>
+      <td class="dim">Beds24 confirm</td>
+    </tr>
+    <tr>
+      <td class="id">4669388</td>
+      <td>wh:bot-booker-v2-OLD</td>
+      <td class="dim">(legacy)</td>
+      <td><span class="pill pill-warn">paused</span></td>
+      <td class="dim">Booker v2 (rollback)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Bugs y deuda técnica conocida</h2>
+<table>
+  <thead>
+    <tr><th style="width:240px">Item</th><th>Detalle</th><th style="width:120px">Severidad</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>escapeJSON() en Make</td>
+      <td class="dim">No funciona en http:MakeRequest. Workaround: Code module previo con JSON.stringify(). En Worker: trivial, no existe.</td>
+      <td><span class="pill pill-warn">media</span></td>
+    </tr>
+    <tr>
+      <td>Latencia turno LLM 9-13s</td>
+      <td class="dim">~14 operations × overhead Make + datastore reads. Worker objetivo &lt;2s.</td>
+      <td><span class="pill pill-warn">media</span></td>
+    </tr>
+    <tr>
+      <td>Concurrencia limitada</td>
+      <td class="dim">Make scenarios procesan secuencialmente por hook. Multi-cliente simultáneo causa queueing.</td>
+      <td><span class="pill pill-warn">media</span></td>
+    </tr>
+    <tr>
+      <td>Blueprints 40KB JSON</td>
+      <td class="dim">Cada edit es alto riesgo. No hay diff legible. No hay tests.</td>
+      <td><span class="pill pill-error">alta</span></td>
+    </tr>
+    <tr>
+      <td>Sin observabilidad real</td>
+      <td class="dim">Executions list es flat, no se sabe conversaciones perdidas/abandonadas/exitosas.</td>
+      <td><span class="pill pill-warn">media</span></td>
+    </tr>
+    <tr>
+      <td>Costos escalan mal</td>
+      <td class="dim">Cada turno ~14 ops. $0.0001 × N × volumen → $80/mes en alto uso.</td>
+      <td><span class="pill pill-warn">media</span></td>
+    </tr>
+    <tr>
+      <td>qa_v3_results obsoletos</td>
+      <td class="dim">Records de QA legacy en DS 85638. No bloqueante.</td>
+      <td><span class="pill">baja</span></td>
+    </tr>
+    <tr>
+      <td>_e2e_test scenarios</td>
+      <td class="dim">scn 4723301 apunta a hook URL borrado. Cleanup pendiente.</td>
+      <td><span class="pill">baja</span></td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>
