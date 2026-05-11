@@ -1,163 +1,233 @@
-# 03 — Pricing agent: Build vs Buy
+# 03 — Pricing agent: port intacto del existente
 
-**Status**: Propuesta. Esperando voto.
+**Status**: Reescrita 2026-05-11 post-decisión Alexander (A2/A5) + audit de Web Claude.
 
-**Decisión propuesta**: **Buy** (PriceLabs) en Stage 1. **Build** complemento en Stage 2 (3-6 meses) solo si la heurística específica del negocio lo justifica.
+**Decisión**: **Port intacto** del pricing agent custom existente en Make (`cron:pricing-daily`, `wh:pricing-approve`, `wh:pricing-reject`) a `apps/pricing` Worker. **NO comprar PriceLabs/Beyond/Wheelhouse. NO build from scratch. NO heuristic simple.**
 
 ## Contexto
 
-Alexander pidió "pricing agent de Make, o solución similar para automatizar fijación de precios y minstays según necesidad del mercado y negocio".
+**Versión original (2026-05-10) de este documento sugirió "Buy PriceLabs Stage 1 + Build override Stage 2"**. Era una mala recomendación basada en suposición errónea de que no había pricing agent funcional.
 
-Hoy en Make no hay un pricing agent activo verificado. Precios están **estáticos** en Beds24 (Alexander los edita manual). Min-stays están seteados pero no se ajustan dinámicamente.
+Alexander corrigió en thread/01-alexander-votes.md (A2/A5):
 
-Industria de vacation rentals tiene varios SaaS dedicados a esto con algoritmos calibrados por años y datos de millones de listings.
+> "Claude Web no analizó bien pricing agent actual en Make, es simple. No habrá PriceLabs."
 
-## Lo que necesitamos
+Web Claude auditó el blueprint actual y encontró que el pricing agent **no es simple**: es sofisticado, calibrado para el negocio, y mejor que cualquier SaaS out-of-box para este caso de uso específico.
 
-1. **Dynamic pricing diario**: precio adjusta según demanda local, eventos (puentes, Semana Santa, Grito), competencia, occupancy histórica.
-2. **Min-stay dynamic**: minstay sube en weekends de alta demanda, baja para orphan nights.
-3. **Floor/ceiling rules**: precios nunca debajo de X (costo operativo + margen mínimo) ni arriba de Y (sanity check).
-4. **Override manual**: Alexander puede setear precio fijo para fecha específica (boda corporativa, evento).
-5. **Push automático a Beds24**: el sistema actualiza Beds24 vía API, sin intervención manual.
-6. **Visibility**: Alexander ve qué cambió, por qué, y revenue proyectado.
+## Lo que existe hoy (auditado 2026-05-11)
 
-## Opciones
+### `cron:pricing-daily` (4718358)
 
-### A — Buy: PriceLabs (recomendado Stage 1)
+**Schedule**: Lun-Dom 06:00-06:01 cada 15min (efectivamente diario 6 AM).
 
-- $19.99/listing/mes (drop a $16.99 con 10+ listings).
-- 5 listings × $19.99 = ~$100/mes total.
-- **Algoritmo Hyper Local Pulse (HLP)** calibrado con datos de mercado local.
-- Integra **directo con Beds24** (Beds24 está listado en integraciones oficiales de PriceLabs).
-- 15+ settings para reglas: base prices, seasonality, weekly/weekend differentials, last-minute discounts, occupancy thresholds, etc.
-- Comp set tools: mapeo de propiedades comparables nearby con ratings, amenities, size.
-- Dashboard de KPIs: ADR, RevPAR, occupancy.
+**Pipeline**:
 
-**Pros**:
-- Live en 1-2 semanas (configuración + comp set + test).
-- Algoritmo probado con miles de listings.
-- Data de mercado local (Pie de la Cuesta / Acapulco) que NUNCA podríamos replicar from scratch.
-- Mantenimiento $0 — PriceLabs mejora el algoritmo continuamente.
-- Override manual fácil.
-- Si no nos gusta, migrar a Beyond o Wheelhouse es cuestión de re-conectar a Beds24.
+1. **Get tokens** (datastores `beds24_auth` + `rdmbot_secrets`)
+2. **Beds24 calendar** GET `/v2/inventory/rooms/calendar` con `startDate=today, endDate=today+360d, includePrices=true, includeMinStay=true, includeNumAvail=true, includeOverride=true`
+3. **Beds24 bookings** GET `/v2/bookings` con `departureFrom=today, arrivalTo=today+360d, includeInvoiceItems=true, status=confirmed`
+4. **Code module pre-LLM** (~50 líneas JS):
+   - Limpia calendar a ranges compactos
+   - Calcula `confirmed_income, payments, balance_pending` cross-property
+   - Agrupa bookings by_month con count
+   - Calcula `financial_summary` per propiedad/mes
+5. **POST Anthropic** (Sonnet 4.5, 12K tokens, ephemeral caching) con:
+   - System prompt 100+ líneas con reglas operativas detalladas
+   - User content: JSON con `today, horizon_days, rooms, calendar, bookings, financial_summary`
+6. **Code module post-LLM** (~80 líneas JS): hard validator
+7. **Datastore add** `pricing_proposals` (85677) con token único + 24h expiry
+8. **Email** con HTML rich a alexander@rincondelmar.club con tabla, warnings, auto-corrected list, APPROVE/REJECT buttons
 
-**Cons**:
-- ~$100/mes recurrente.
-- Algoritmo es black box. No podemos meter señales custom (p.ej. "Karina vio que el grupo de Whatsapp X reservó la villa de al lado").
-- Dependencia externa para core del negocio.
+### System prompt highlights
 
-### B — Buy: Beyond Pricing
+**Hard rules (10)**:
+1. minStay only {2, 3, 4}
+2. Override only `null` or `noCheckIn` (NEVER `blackout`)
+3. Prices MUST be multiples of 250 (e.g. 1500, 1750, 2000 — NEVER 1900, 2850, 8075)
+4. Max +/-20% price change vs current per run
+5. NEVER touch dates with bookings (numAvail=0)
+6. NEVER touch premium seasons: Christmas/NewYear (Dec23-Jan2), Holy Week, Easter, Sept 15
+7. Floor by roomId: 78695=5000, 374482=3500, 74322=3500, 74316=11000, 637063=1500
+8. Ceiling by roomId: 78695=40000, 374482=25000, 74322=25000, 74316=60000, 637063=6000
+9. Saturday always minStay=4
+10. Carnival is NOT premium
 
-- Pricing similar (~$15-20/listing/mes).
-- "Search-powered pricing" — usa data de búsquedas guest para predecir demanda.
-- Hand-launched markets — equipo Beyond cura cada mercado.
+**Min-stay matrix** (5 propiedades × 5 seasons × 4 horizons):
+- Christmas: 4 nights todos los horizonte
+- Summer/HolyWeek/Easter/Sept15/May/Muertos: 3 nights typical, 2 if last-minute
+- Low season: 3 → 2 según horizonte
+- Combinada: similar pero excluye discounts
+- Huerta: siempre 2 (más flexible)
 
-**Pros**:
-- Mejor para luxury / unique properties (RdM cae aquí).
-- Search-powered es ventaja real, datos que PriceLabs no tiene.
+**Anti-orphan logic** (gaps 1-4 nights between bookings):
+- Gap 1N: override `noCheckIn`, minStay stays
+- Gap 2-3N: respect base minStay
+- Gap 4N+: bump first day to max(base, 3)
 
-**Cons**:
-- Hand-launched significa que **podrían no tener Pie de la Cuesta** cubierto bien todavía. Verificar.
-- Menos customizable que PriceLabs.
+**Last-minute discount schedule** (% off current price):
+- <45d, >=30d: -5%
+- <30d, >=14d: -10%
+- <14d, >=7d: -15%
+- <7d, >=3d: -20%
+- <3d: -25%
 
-### C — Buy: Wheelhouse
+Conditions: solo RdM/Morenas/Huerta (NEVER Combinada), solo Low/Mid season (NEVER Christmas/HolyWeek/Easter), día disponible (numAvail=1), current > floor.
 
-- $19.99/listing/mes Pro, o 1% revenue.
-- 18-month forward calculator (único en industria).
-- Dynamic Sets — comp set mapping detallado.
+**Math**:
+- `raw = current_price * (1 - discount_pct)`
+- `new_price = Math.floor(raw / 250) * 250` (round DOWN to nearest 250)
+- `new_price = max(floor, new_price)`
+- If `new_price === current_price1`, SKIP
 
-**Pros**:
-- 1% revenue model es atractivo: paga proporcional a éxito.
-- Forward calculator largo plazo útil para planning eventos grandes (bodas).
+### Post-LLM hard validator (~80 líneas)
 
-**Cons**:
-- Menos data local que PriceLabs.
+- Valida cada change: roomId, date format, no past dates, minStay {2,3,4}, override válido
+- Auto-corrige prices al múltiplo de 250 más cercano (down)
+- Valida price floor/ceiling per roomId
+- Valida pct change ≤ 20%
+- Filtra changes que no modifican nada
+- Construye `beds24_payload` agrupado per roomId
 
-### D — Build: Pricing agent custom desde cero
+### Email approval workflow
 
-```typescript
-// apps/pricing/src/index.ts (sketch)
-export default {
-  async scheduled(event, env, ctx) {
-    // 1. Pull occupancy histórica de D1
-    // 2. Pull eventos calendar (Grito, S.Santa, etc.)
-    // 3. Pull competitor prices (scrape Airbnb listings nearby — RIESGO TOS)
-    // 4. Compute new prices per día per propiedad con heurística:
-    //    - base × (1 + occupancyFactor) × (1 + eventFactor) × (1 + leadTimeFactor)
-    //    - clamp a [floor, ceiling]
-    // 5. Push a Beds24 via API
-    // 6. INSERT en D1 pricing_log para audit
-    // 7. Notify Alexander vía email si change > 15%
-  }
-};
+HTML rich:
+- Financial summary table (avail nights, occupancy %, confirmed income, upside, probable revenue, notes per mes)
+- Warnings section
+- Auto-corrected prices list
+- Proposed changes table (property, date, change, reason)
+- 2 botones: APPROVE / REJECT con token único + 24h expiry
+- Analysis sections del LLM: executive summary, minstay analysis, orphan analysis, discount analysis, season observations, operational alerts, recommendations
+
+### Stats actuales
+
+- 22 ejecuciones del cron
+- 10 errores (45% — debugging activo, probable: Beds24 timeouts, JSON parse del LLM con `content[1].text` que puede fallar si LLM responde diferente)
+- 5 approves ejecutados
+- 0 rejects (los rechazos requieren que el approve no se haga, no se generan eventos)
+
+## Por qué NO PriceLabs / Beyond / Wheelhouse
+
+| Razón | Detalle |
+|---|---|
+| **Reglas propietarias** | Premium seasons MX, floors per propiedad, mascotas no, Combinada blocks 78695+374482 (linked) — SaaS no soporta |
+| **Chef incluido en RdM** | Pricing más caro vs Morenas. SaaS no entiende |
+| **5 roomIds incluyendo dual listing** | 374482 (direct) + 74322 (Airbnb) son mismo property. SaaS no maneja bien |
+| **Email approval flow** | Alexander aprueba antes de aplicar. SaaS auto-apply o requieren UI propia para approval |
+| **Costo SaaS recurrente** | ~$100/mes ($19.99 × 5 listings) PriceLabs vs $0/mes recurring marginal |
+| **Vendor lock-in** | PriceLabs/Beyond migration sale es trabajo |
+| **Modelo ya calibrado** | 100+ líneas de reglas Operacionales tomó tiempo afinar. Replicar en otro sistema es regresión |
+
+## Por qué NO build from scratch
+
+| Razón | Detalle |
+|---|---|
+| **Ya está construido** | El cron funciona, los emails llegan, las reglas están claras |
+| **Time-to-port < time-to-rebuild** | 1-2 semanas port intacto vs 3-6 meses rewrite |
+| **Riesgo de regresión** | Cualquier rewrite olvida casos edge ya cubiertos |
+| **Sonnet 4.5 prompts ya tuneado** | Los ejemplos de math en el prompt están calibrados para Haiku/Sonnet behavior — replicar requiere re-tuning |
+
+## Plan de port (Sprint 3, post-MVP1)
+
+### `apps/pricing` Worker structure
+
+```
+apps/pricing/
+├── wrangler.toml
+├── src/
+│   ├── index.ts              ← cron handler + manual trigger route
+│   ├── cron.ts               ← orquestación del pipeline
+│   ├── approve.ts            ← POST /approve?token=X endpoint
+│   ├── reject.ts             ← POST /reject?token=X endpoint
+│   ├── beds24-client.ts      ← typed client (delega a packages/beds24)
+│   └── email-template.tsx    ← React Email para approval HTML
+└── package.json
+
+packages/pricing-agent/
+├── src/
+│   ├── index.ts              ← export pipeline orchestrator
+│   ├── prompt.ts             ← system prompt (port intacto del JS string)
+│   ├── pre-llm.ts            ← Code module pre-LLM logic
+│   ├── post-llm.ts           ← hard validator
+│   ├── types.ts              ← Zod schemas
+│   └── pricing-agent.test.ts ← regression tests
+└── package.json
 ```
 
-**Pros**:
-- $0 recurrente.
-- Control total. Podemos meter señales custom (señal de Karina, eventos privados que conocemos).
-- Data del bot (intent de cotización por fecha) es señal de demanda REAL — nadie más la tiene.
+### Cambios respecto a Make
 
-**Cons**:
-- **3-6 meses** para tener algo bueno. Heurísticas simples sin ML primer trimestre. ML serio requiere meses + data.
-- Scraping Airbnb es **violación de TOS** y frágil. AirDNA API existe pero cuesta $19-99/mes y aún hay que integrar.
-- Riesgo de error: si el algoritmo baja precio 30% por bug, perdemos $$$.
-- Mantenimiento continuo. Algoritmo debe ajustarse cada estación, evento nuevo, propiedad nueva.
-- **Compite contra equipos full-time de PriceLabs/Beyond** que llevan años en esto.
+1. **D1 reemplaza datastore `pricing_proposals`**:
+   ```sql
+   CREATE TABLE pricing_proposals (
+     token TEXT PRIMARY KEY,
+     status TEXT NOT NULL DEFAULT 'pending',  -- pending | approved | rejected | expired | applied | error
+     summary TEXT,
+     deltas_json TEXT NOT NULL,
+     created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+     expires_at INTEGER NOT NULL,
+     applied_at INTEGER,
+     apply_response TEXT
+   );
+   ```
 
-### E — Híbrido: Buy PriceLabs + Build complemento (recomendado Stage 2)
+2. **React Email reemplaza HTML inline**:
+   - Usa `packages/email-templates` (ya existe)
+   - Mismo diseño, mejor maintainability
+   - Cuidado: `@react-email/render` falla en CF Workers runtime (CC reportó). Usar HTML inline fallback igual que Better Auth.
 
-- Stage 1: PriceLabs setea base prices y minstays.
-- Stage 2: Worker custom override PriceLabs para casos específicos donde tenemos info propietaria:
-  - Demand del bot (turnos LLM por fecha) — proxy de interés real.
-  - Eventos corporativos confirmados que bloquean fechas.
-  - Patterns de Karina (insights humanos).
-  - Marketing campaigns activas (pricing ajustado para CTW ads).
+3. **APPROVE/REJECT URLs apuntan a `apps/pricing`**:
+   - `https://api.rincondelmar.club/pricing/approve?token=X` (Sprint 2-3 cuando `apps/api` exista)
+   - O directo `https://pricing.rincondelmar.club/approve?token=X` (sin subdomain extra)
+   - Decide CC
 
-**Pros**:
-- Best of both: algoritmo industrial + señales propietarias.
-- Si PriceLabs falla, base prices siguen siendo razonables sin override.
-- Build minimal (override layer, no full algo).
+4. **Anthropic client desde `packages/llm-client`**:
+   - Mismo wrapper que `apps/bot` para reutilizar prompt caching + telemetry
 
-**Cons**:
-- Complejidad: dos sistemas que tocan Beds24 prices.
-- Resolver conflictos: ¿quién gana cuando PriceLabs dice $12k y override dice $15k?
+5. **Tests regresión**:
+   - Capturar payloads reales actuales del cron Make (calendar+bookings)
+   - Snapshot LLM output esperado
+   - Replay contra `apps/pricing` y compare deltas
 
-## Recomendación
+### Migración cutover
 
-**Stage 1: PriceLabs**. Live en 2 semanas, $100/mes para 5 listings, baseline excelente.
+1. `apps/pricing` deployment con cron paralelo a Make (mismo schedule)
+2. Compare outputs por 5-7 días — alertar si difieren > 10%
+3. Switch authoritative source: Make → `apps/pricing`
+4. Pause Make `cron:pricing-daily` (no delete, fallback 14 días)
+5. Sunset Make scenario en Fase 5
 
-**Stage 2 (mes 4-6): Override layer custom** en `apps/pricing/` que escucha eventos del bot (cotización fallidas, conversion rate por fecha) y modifica precios sobre la baseline de PriceLabs solo en casos justificados.
+## Errores actuales a resolver durante port
 
-**No build from scratch** — perderíamos meses replicando lo que PriceLabs hace gratis.
+10 errores en 22 exec. Hipótesis:
 
-## Costos comparativos (3 propiedades activas + Combinada + Chamán futuro)
+1. **Beds24 API timeouts** (probable): rate limit o slowness. Fix: timeout 120s ya está, agregar retry exponential.
+2. **JSON parse LLM**: `data.content[1].text` falla si LLM responde con un solo content block (sin tool use prefix). Fix: iterar content array buscando text type.
+3. **Datastore `pricing_proposals` lookup**: si Make falla persisting, los approve URLs no funcionan.
+4. **Email send failures**: Google Email connection puede tener rate limits.
 
-| Opción | Setup | $/mes | Tiempo a producción |
-|---|---|---|---|
-| A — PriceLabs | 1 sem | $80-100 | 2 sem |
-| B — Beyond | 2 sem | $80-100 | 3 sem |
-| C — Wheelhouse | 2 sem | $80-100 o 1% rev | 3 sem |
-| D — Build | 12 sem | $0 (+ AirDNA $19-99 si data externa) | 3-6 meses |
-| E — Híbrido | A + 4 sem extra | $80-100 + $0 | 2 sem + 1 mes |
+Port a Worker resuelve 1, 3, 4 con D1 atomicity + Resend. (2) requiere fix en el code module.
 
-ROI dynamic pricing en vacation rentals: industry data cita 5-15% ADR lift. Para RdM con ARPU promedio estimado de ~$15k/noche × 50-100 noches/mes per propiedad → revenue mensual $750k-1.5M MXN. 5% lift = $37k-75k MXN/mes. **PriceLabs paga su costo 400-1000x**.
+## Riesgos del port
 
-## Decisión D (Build) — cuándo justificaría
+| Riesgo | Mitigación |
+|---|---|
+| `@react-email/render` falla en CF Workers | HTML inline fallback (igual que Better Auth) |
+| Prompt Sonnet 4.5 cambia behavior en Haiku 4.5 | Mantener Sonnet 4.5 para pricing (no es hot path, $0.50/run es trivial) |
+| D1 transaction fails atómica | Workers Workflows o try/catch con rollback explícito |
+| Anthropic API quota | Single execution/día, no problema |
+| Beds24 API rate limit | Espaciar fetchAll calls, ya hace 2 (no muchas) |
 
-- Si tenemos un edge claro vs algoritmos comerciales (no parece el caso hoy).
-- Si volumen escala a 50+ propiedades y $100/mes/listing se vuelve material.
-- Si encontramos señal propietaria que SaaS no captura.
+## Roadmap
 
-**Hoy, no.**
+| Sprint | Trabajo |
+|---|---|
+| MVP1 (Sprint 1) | NO tocar pricing. Sigue en Make |
+| Sprint 2 (admin) | `apps/admin` tiene tab Pricing con view de pending proposals |
+| Sprint 3 | Port `cron:pricing-daily` + approve/reject a `apps/pricing` |
+| Sprint 4 | Cutover authoritative, paralelo deprecated |
+| Sprint 5 | Sunset Make pricing scenarios |
 
 ## Voto
 
-- [ ] **Claude Code**: ¿A, B, C, D, E? Otra herramienta?
-- [ ] **Alexander**: ¿OK con buy PriceLabs Stage 1?
-
-## Refs
-
-- PriceLabs Beds24 integration: `https://hello.pricelabs.co/integrations/`
-- Beyond Pricing: `https://www.beyondpricing.com`
-- Wheelhouse: `https://www.usewheelhouse.com`
-- Industry comparison 2026: `https://www.aeve.ai/best-dynamic-pricing-tools-vacation-rentals-2026`
+- [x] **Alexander** (A2/A5 thread/01): no PriceLabs, custom port
+- [ ] **Claude Code**: ¿voto sobre port intacto vs incremental refactor con tests?
+- [ ] **Web Claude**: voto port intacto manteniendo Sonnet 4.5, R2 para `pricing_proposals` archive, D1 para current state
+- [ ] **Future**: stage 2 considera agregar señales propietarias (bot intent demand, eventos manuales) al LLM input — pero NO antes del cutover Make→Worker estable

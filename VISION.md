@@ -1,19 +1,21 @@
-# Visión — arquitectura objetivo
+# Visión — arquitectura objetivo (v2)
+
+**Actualizada 2026-05-11** con correcciones CC + decisiones Alex (thread 01).
 
 Resumen ejecutivo. Cada decisión técnica vive en `decisions/`.
 
 ## Principios
 
-1. **Cloudflare-native**. Todo el cómputo, storage, queues, workflows, edge sobre CF. Cero island solutions, cero workarounds para suplir features faltantes.
-2. **Modular**. Monorepo Turborepo + pnpm con apps independientes y packages compartidos. Cada nuevo módulo (inventario, staff, chef) se añade como `apps/X` sin tocar lo existente.
-3. **Single source of truth**. Bookings, conversaciones, clientes, inventario — todo vive en D1. Beds24, ManyChat, MercadoPago, Resend son downstream/integrations.
-4. **Two-stage channels**. Stage 1: ManyChat como BSP (evitar cutover masivo). Stage 2: WhatsApp Cloud API direct + IG/FB/TT directos (sunset ManyChat).
-5. **Migración gradual sin downtime**. Make.com se mantiene activo hasta que cada módulo Worker esté probado. Cutover por módulo, no big bang.
-6. **Magic link unificado**. Un solo sistema de auth para clientes, staff y admin. Multi-rol.
-7. **Build vs Buy disciplinado**. Para problemas estándar de la industria (pricing dinámico, broadcast WhatsApp, analytics) considerar SaaS antes que construir. Solo construir lo que da ventaja competitiva.
-8. **Best industry stack 2026**: Hono + TypeScript + Turborepo + pnpm + Cloudflare Workers + D1 + KV + R2 + Queues + Workflows. React 19 + shadcn/ui + Tailwind + Vite para fronts. Anthropic Haiku/Sonnet para LLM.
+1. **Cloudflare-native** donde encaja, **CF Pages para Astro** donde aplica. Stack uniformemente CF, sin AWS/GCP.
+2. **Modular**. Monorepo Turborepo + pnpm con apps independientes y packages compartidos.
+3. **Single source of truth**. Bookings, conversaciones, clientes — todo D1. Beds24, ManyChat, MercadoPago, Resend son downstream/integrations.
+4. **Two-stage channels**. Stage 1: ManyChat BSP. Stage 2: WhatsApp Cloud API direct + IG/FB/TT direct.
+5. **Migración gradual sin downtime**. Make.com activo hasta cada módulo Worker probado. Cutover por módulo.
+6. **Magic link + WhatsApp OTP unificado**. Better Auth extendido. Multi-rol.
+7. **Build vs Buy disciplinado**. Para pricing, NO PriceLabs — agente custom existente ya superior.
+8. **Best industry stack 2026**: Hono + TS + Turborepo + pnpm + Workers + D1 + KV + R2 + Queues + Workflows + Astro 5 (sitio) + React 19 + shadcn + TanStack (admin).
 
-## Stack
+## Stack final
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
@@ -24,186 +26,201 @@ Resumen ejecutivo. Cada decisión técnica vive en `decisions/`.
        ▼                      ▼                    ▼
 ┌─────────────────┐  ┌──────────────────┐  ┌──────────────────┐
 │ ManyChat (BSP)  │  │ rincondelmar.club│  │ admin.rdm.club   │
-│ Stage 1 only    │  │ apps/site        │  │ apps/admin (PWA) │
+│ Stage 1 only    │  │ apps/site (Astro)│  │ apps/admin (PWA) │
 └────┬────────────┘  └────┬─────────────┘  └────┬─────────────┘
      │ Stage 2:           │                     │
      │ Meta Cloud API     │                     │
      │ direct             │                     │
      ▼                    ▼                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  CLOUDFLARE WORKERS — monorepo apps                             │
+│  CLOUDFLARE — monorepo                                          │
 │                                                                 │
-│  apps/site    (rincondelmar.club)      ← sitio público          │
-│  apps/bot     (bot.rincondelmar.club)  ← WA/FB/IG/TT agents     │
-│  apps/admin   (admin.rincondelmar.club) ← Pages, React PWA      │
-│  apps/api     (api.rincondelmar.club)  ← API gateway interno    │
-│  apps/pricing (cron-only)              ← pricing agent           │
-│  apps/webhooks (webhooks.rdm.club)     ← MP, Meta, Beds24       │
+│  apps/site       Astro 5 en Pages   rincondelmar.club           │
+│  apps/bot        Worker             bot.rincondelmar.club       │
+│  apps/admin      Worker Static      admin.rincondelmar.club     │
+│  apps/api        Worker             api.rincondelmar.club       │
+│  apps/pricing    Worker cron        (no public domain)          │
+│  apps/webhooks   Worker             webhooks.rincondelmar.club  │
+│  apps/tours      Worker             tours.rincondelmar.club     │
+│  apps/disponibilidad Worker         disponibilidad.r.club       │
+│  apps/worker-pago (legacy hasta migración páginas /pago)        │
 │                                                                 │
-│  packages/db      ← D1 schema + Drizzle ORM + migrations        │
-│  packages/shared  ← types, constants, utils                     │
-│  packages/agents  ← LLM patterns (Greeter, Booker, Customer)    │
-│  packages/channels ← WhatsApp, IG, FB, TT abstraction           │
-│  packages/beds24  ← typed client + sync                         │
-│  packages/mp      ← MercadoPago client                          │
-│  packages/auth    ← magic link, sessions, multi-role            │
-│  packages/ui      ← React components (admin + emails)           │
+│  packages/db          Drizzle schema + migrations               │
+│  packages/auth        Better Auth + multi-role + WA OTP plugin  │
+│  packages/agents      LLM patterns (Greeter, Booker, Pricing)   │
+│  packages/channels    WA, IG, FB, TT abstraction                │
+│  packages/beds24      typed client + sync                       │
+│  packages/mp          MercadoPago client + HMAC                 │
+│  packages/email-templates  React Email + HTML inline fallback   │
+│  packages/llm-client  Anthropic wrapper con caching             │
+│  packages/pricing-agent  port intacto del Make scenario         │
+│  packages/shared      types, constants, utils                   │
+│  packages/ui          React components (admin)                  │
 │                                                                 │
 └──────┬───────────────┬───────────────┬─────────────┬────────────┘
        │               │               │             │
        ▼               ▼               ▼             ▼
 ┌────────────┐  ┌────────────┐  ┌──────────────┐  ┌──────────┐
-│ D1         │  │ KV         │  │ R2           │  │ Queues + │
-│ all data   │  │ cache +    │  │ assets +     │  │ Workflows│
-│ + drizzle  │  │ sessions + │  │ knowledge +  │  │ orchestr.│
-│            │  │ debounce   │  │ logs         │  │          │
+│ D1 `rincon`│  │ KV         │  │ R2           │  │ Queues + │
+│ all data   │  │ idempotency│  │ rdm-knowledge│  │ Workflows│
+│ + drizzle  │  │ + cache    │  │ + assetsrdm  │  │ Sprint 3+│
+│ 10 tablas+ │  │            │  │              │  │          │
 └────────────┘  └────────────┘  └──────────────┘  └──────────┘
 
        ▼
 ┌──────────────────────────────────────────────────────────┐
 │  INTEGRACIONES EXTERNAS                                  │
 │  Beds24 · MercadoPago · Anthropic · Resend · GitHub      │
-│  PriceLabs (build vs buy)                                │
+│  Meta Graph API (Stage 2)                                │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ## Apps (Workers + Pages)
 
-| App | Tipo | Dominio | Función |
-|---|---|---|---|
-| `site` | Worker | `rincondelmar.club` | Sitio público + flujo de booking (hereda de `rincon-pago` actual) |
-| `bot` | Worker | `bot.rincondelmar.club` | Agentes LLM para canales de mensajería |
-| `admin` | Pages | `admin.rincondelmar.club` | UI React (PWA) — staff, admin, prompts, configs, bookings |
-| `api` | Worker | `api.rincondelmar.club` | Endpoints internos compartidos (auth, search, etc.) |
-| `pricing` | Worker (cron-only) | (no domain) | Pricing agent cron, push prices a Beds24 |
-| `webhooks` | Worker | `webhooks.rincondelmar.club` | MP webhook, Meta webhook, Beds24 webhook (cuando exista) |
-| `tours` | Worker | `tours.rincondelmar.club` | Sin cambios (panoramas 360°) |
+| App | Tipo | Dominio | Función | Sprint |
+|---|---|---|---|---|
+| `site` | **CF Pages (Astro 5)** | `rincondelmar.club` | Sitio público + flujo booking + páginas /pago/* | Existe |
+| `bot` | Worker | `bot.rincondelmar.club` | Agentes LLM (Greeter v5, Booker hot-fix C) | **MVP1** |
+| `admin` | Worker Static Assets | `admin.rincondelmar.club` | UI React PWA — staff, admin, prompts, configs | Sprint 2 |
+| `api` | Worker | `api.rincondelmar.club` | Endpoints internos compartidos | Sprint 2-3 |
+| `pricing` | Worker (cron) | (no domain o `api.r.club/pricing/*`) | Port pricing agent + approve/reject | Sprint 3 |
+| `webhooks` | Worker | `webhooks.rincondelmar.club` | MP webhook (extract de worker-pago), Meta webhook, Beds24 webhook | Sprint 3 |
+| `tours` | Worker | `tours.rincondelmar.club` | Panoramas 360° (sin cambios) | Existe |
+| `disponibilidad` | Worker | `disponibilidad.rincondelmar.club` | Visor calendar público (renombrado de `beds24-calendar`) | Sprint 4 |
+| `worker-pago` | Worker | `pago.rincondelmar.club` (deprecará) | Legacy hasta `pago/*` migration | Sprint 1 cleanup |
 
-**Decisión**: separar `webhooks` de `site` para reducir blast radius. El webhook MP de `site` actual se mueve a `webhooks`.
+**`apps/web` permanece en CF Pages, NO migra a Workers Static Assets.** Astro 5 + adapter cloudflare es excelente en Pages. Workers Static Assets es solo SPA + custom code — perderíamos SSR routes + content collections + sitemap auto-gen.
 
-## Módulos futuros (post-migración)
+## Decisión clave: `apps/site` = `apps/web` actual
 
-Cada módulo es un `apps/X` adicional en el monorepo:
+CC en thread/00 corrigió: **NO migrar Astro a Workers Static Assets**. Rename a `apps/site` opcional (semántica). Mantener stack Astro 5 + CF Pages.
 
-- `apps/inventory` — admin de inventario y compras.
-- `apps/staff-tasks` — tasks del equipo (limpieza, mantenimiento, llegadas).
-- `apps/chef` — recetas, insumos, platillos, menús.
-- `apps/marketing` — broadcasts, campañas, segmentación.
-- `apps/owner-dashboard` — si en el futuro Alexander hostea propiedades de terceros.
+Las SSR routes (`/api/quote`, `/api/payment-link`, `/api/contact`, etc.) quedan dentro de `apps/site`. `apps/api` solo cuando admin board lo requiera (Sprint 2-3).
 
-No los construimos ahora pero el monorepo, schema D1, auth, y design system los anticipan.
+## Módulos futuros (post-Sprint 4)
+
+Cada uno `apps/X` adicional en monorepo:
+
+- `apps/inventory` — admin inventario y compras
+- `apps/staff-tasks` — tasks limpieza/mantenimiento/llegadas
+- `apps/chef` — recetas, insumos, platillos, menús
+- `apps/marketing` — broadcasts WhatsApp Stage 2
+- `apps/owner-dashboard` — si Alex hostea propiedades terceros
+
+NO se construyen ahora pero monorepo + schema D1 + auth + design system los anticipan.
 
 ## Tres pilares de la migración
 
-### Pilar 1 — Migrar bots Make → `apps/bot`
+### Pilar 1 — Migrar bots Make → `apps/bot` (MVP1, 1 semana)
 
-Greeter + Booker + Router → módulos TypeScript con override_rule v4 + hot-fix C portados intactos. Knowledge refresh → cron del Worker.
+Greeter v5 + Booker hot-fix C porteados intactos a TypeScript. Channel abstraction layer Stage 1 (ManyChat). Knowledge refresh cron 2h al KV.
 
-**Tiempo estimado**: 2-3 semanas.
+**Sprint 1 (MVP1)**: bot.rincondelmar.club live, Make scenarios fallback 1 semana.
 
-### Pilar 2 — Admin board
+### Pilar 2 — Admin board (Sprint 2-3, ~4 semanas)
 
-`apps/admin` (React PWA + shadcn/ui + Tailwind) con:
-- Bookings (CRUD).
-- Conversaciones (read + take over).
-- Prompts (editar override_rule, base prompt, deploy en vivo).
-- Configs (precios base, min stay, capacidad, mascotas, etc.).
-- Pricing (rules manuales y override de pricing agent).
-- Staff y clientes (multi-rol con magic link).
+`apps/admin` PWA con:
+- Bookings (CRUD)
+- Conversaciones (read + take over)
+- Prompts (editar override_rule, base prompt, deploy en vivo)
+- Configs (precios base, min stay, capacidad, mascotas)
+- Pricing (rules + override + history)
+- Staff y clientes (multi-rol)
 
-**Tiempo estimado**: 3-4 semanas en paralelo con Pilar 1.
+Reemplaza los admin scenarios de Make (`wh:admin-dashboard`, `wh:admin-action`, etc).
 
-### Pilar 3 — Pricing agent
+### Pilar 3 — Pricing agent port (Sprint 3-4, ~2 semanas)
 
-Cron Worker que cada 24h:
-1. Lee occupancy histórica de D1 + Beds24.
-2. Lee competidores (PriceLabs API o scraping ligero AirDNA / Airbnb).
-3. Computa nuevos prices + min-stays con heurística (luego ML).
-4. Push a Beds24.
+Port intacto `cron:pricing-daily` Make → `apps/pricing` Worker.
 
-**Decisión Build vs Buy**: ver `decisions/03-pricing-agent.md`. Recomendación inicial: usar **PriceLabs** ($19/listing/mes) para empezar, integrar via webhook + API, y construir capa propia encima si justifica. **Razón**: best industry tool, calibrado por mercado, evita 3-6 meses de ML.
-
-**Tiempo estimado**: 2 semanas con PriceLabs, 3-6 meses build from scratch.
+**NO PriceLabs. NO build from scratch. Port custom sofisticado existente.** (Ver decisions/03.)
 
 ## Two-stage channels
 
-### Stage 1 (semanas 0-12) — ManyChat se queda
+### Stage 1 (mes 0-3) — ManyChat se queda
 
-- Webhook ManyChat → `apps/bot/webhook/manychat`.
-- Custom fields se mantienen (MakeMsg, bot_paused_until, rdmbot_agent).
-- Mensajes salientes via ManyChat API (SetCustomField + SendFlow).
-- **Razón**: ya está pagado, opt-in registrado, templates aprobados, multi-canal funciona. Cutover masivo a Cloud API es riesgo alto que NO necesitamos en stage 1.
+- ManyChat webhook → `apps/bot/webhook/manychat`
+- Custom fields se mantienen (MakeMsg, bot_paused_until, rdmbot_agent)
+- Templates HSM existentes
+- WhatsApp OTP via HSM template `rdm_otp` si aprobado (decisión Alex pending)
 
-### Stage 2 (mes 4+) — WhatsApp Cloud API directo
+### Stage 2 (mes 4+) — WhatsApp Cloud API direct
 
-- WABA propia con Meta Cloud API.
-- Templates HSM gestionados en Meta Business Suite.
-- Webhook directo a `apps/webhooks/whatsapp`.
-- IG / FB / TT directo via Meta Graph API.
-- Sunset ManyChat solo cuando feature parity al 100%.
-- **Razón**: 30-60% menor TCO (Meta charges per conversation, ManyChat agrega markup), control total de templates y flows, soporte para WhatsApp Flows (formularios nativos).
+- WABA propia con Meta Cloud API
+- Templates HSM gestionados en Meta Business Manager
+- IG/FB/TT directo via Meta Graph API
+- Sunset ManyChat post-coexistence 2-4 sem
+- **Cost note**: Meta charges $0.04-0.10/conv en MX. Estimar $40-100/mes adicional según volumen.
 
-Ver `decisions/02-channel-strategy.md` para detalle.
+Ver decisions/02-channel-strategy.md.
 
-## Auth — magic link unificado
+## Auth — Better Auth extendido (NO custom)
 
-Una tabla `users` con `roles[]`. Magic link via Resend para clientes, staff y admin. Middleware `requireRole('admin')` en endpoints sensibles. Ver `decisions/05-auth-magic-link.md`.
+CC corrección: Better Auth 1.6.9 ya en producción.
+
+`packages/auth`:
+- Better Auth wrapper config con Drizzle adapter
+- Plugin: WhatsApp OTP custom (Stage 1 via ManyChat HSM si template aprobado, Stage 2 via Cloud API)
+- Tabla `user_roles` para multi-rol
+- Tabla `user_identities` para vincular WA/IG/FB/TT con email
+- Cookie `Domain=.rincondelmar.club` cross-app
+
+Ver decisions/05-auth-magic-link.md.
 
 ## PWA / APK
 
-`apps/admin` se construye desde día 1 como PWA (manifest.json, service worker, offline-capable). Cuando Alexander quiera, **Capacitor** wrappea la PWA en APK para Play Store. No es prioridad. Ver `decisions/07-pwa-mobile.md`.
+`apps/admin` PWA día 1 (vite-plugin-pwa). APK via Capacitor 6-12 meses post-PWA si justifica.
 
-## Orquestación: Workflows + Queues en lugar de Make
+Ver decisions/07-pwa-mobile.md.
 
-Make.com se usa para:
-1. Llamadas a Beds24 (refresh, get, post).
-2. Conversaciones LLM 2-stage.
-3. MP webhook handling.
-4. Knowledge refresh cron.
+## Orquestación: Workflows + Queues (Sprint 3+)
 
-**Reemplazo nativo CF**:
-- **Cloudflare Workflows** — orquestación durable multi-step (replaza scenarios complejos Make). Ejemplos: pricing pipeline (fetch competitors → compute → push → notify), confirmar booking (D1 update → Beds24 PUT → email → ManyChat notify), retry con backoff exponencial.
-- **Cloudflare Queues** — fan-out async, buffering, dead letter queue (replaza patterns de cola en Make). Ejemplos: outbound messages, image processing, analytics events.
-- **Cron Triggers** — schedules (replaza Make cron). Ya en uso para `rincon-pago`.
-- **Durable Objects** — state coordinado (debounce 8s per subscriber, locks anti-double-booking).
+NO en MVP1. Reemplazo gradual de Make:
+- Knowledge refresh → cron CF (Sprint MVP1)
+- MP webhook → Worker `apps/webhooks` (Sprint 3, hoy es `worker-pago`)
+- Greeter/Booker → Workers con DO debounce (Sprint MVP1)
+- Booking creation → Workflow (Sprint 3)
+- Pricing → Worker cron (Sprint 3-4)
 
-Ver `decisions/08-orchestration.md`.
+Ver decisions/08-orchestration.md.
 
 ## Lo que NO cambia
 
-- Anthropic Haiku 4.5 + prompt caching.
-- Override_rule v4 + hot-fix C (probados, portados intactos).
-- HMAC SHA256 webhook MP (ya implementado bien).
-- Resend para emails.
-- Knowledge files en GitHub raw (sync cron a KV).
-- Property slugs (`rincon-del-mar`, etc) como public identifiers.
-- Mapping property slug → Beds24 roomId (pasa a tabla D1 `properties`).
-- Diseño tokens del sitio (`#0e6b7a`, `#fdfaf5`, etc.).
+- Anthropic Haiku 4.5 (Greeter, Booker) + Sonnet 4.5 (Pricing) + prompt caching
+- Override_rule v5 + Booker hot-fix C (portados intactos)
+- HMAC SHA256 webhook MP (ya implementado bien)
+- Resend para emails
+- Knowledge files en GitHub raw (sync cron a KV/R2)
+- Property slugs (`rincon-del-mar`, etc) como public identifiers
+- Mapping property slug → Beds24 roomId (pasa a tabla D1 `properties`)
+- Diseño tokens del sitio (`#0e6b7a`, `#fdfaf5`, `#c8a96e`)
+- **Astro 5 + CF Pages para `apps/site`** (no migrar a Workers Static Assets)
 
 ## Métricas objetivo
 
-| Métrica | Actual (estimado) | Objetivo |
-|---|---|---|
-| Latencia LLM p50 | ~10s | < 2s |
-| Error rate Greeter | ~5% | < 1% |
-| Bookings con full trazabilidad D1 | ~50% (solo web) | 100% |
-| Costo plataforma mensual | ~$60 (Make+CF+Resend) | < $40 (sunset Make) |
-| Time to deploy fix | 10-30 min | < 2 min |
-| Test coverage paths críticos | 0% | > 60% |
-| Conversion bot→booking | desconocido | medido + > 15% |
-| Modules adicionales para añadir | 1 por mes en stack actual | 1 por semana en stack nuevo |
+| Métrica | Actual (estimado) | Objetivo MVP1 | Objetivo Sprint 5 |
+|---|---|---|---|
+| Latencia LLM p50 | ~10s | < 3s | < 2s |
+| Error rate Greeter | ~10% (75/722) | < 5% | < 1% |
+| Error rate Booker | ~47% (30/63) | < 10% | < 1% |
+| Bookings con full trazabilidad D1 | ~50% (solo web) | 100% (incluye WA) | 100% |
+| Costo Make.com mensual | $30-80 | $30-80 (paralelo MVP1) | $0 (sunset Fase 5) |
+| Costo Anthropic mensual | $10-30 | $10-30 | $10-30 |
+| Costo Cloudflare Workers Paid | $0 (free tier) | $5/mes | $5-10/mes |
+| Costo Stage 2 Meta Cloud API | N/A | N/A | $40-100/mes |
+| **TOTAL** mensual | $40-110 | $45-115 | $55-150 |
+| Time to deploy fix | 10-30 min | < 5 min | < 2 min |
+| Test coverage paths críticos | 0% | 30% | > 60% |
 
 ## Roadmap macro
 
 | Fase | Duración | Output |
 |---|---|---|
-| 0 — Setup monorepo | 1 sem | Turborepo + packages + wrangler configs |
-| 1 — Apps `bot` + `pricing` + `webhooks` | 4 sem | Bots migrados + pricing live + webhooks consolidados |
-| 2 — App `admin` | 4 sem | PWA con prompt editor + bookings + roles |
-| 3 — Stage 2: WhatsApp Cloud API directo | 3 sem | Sunset ManyChat |
-| 4 — Hardening + observability | 2 sem | Logs, metrics, alerting |
-| 5 — Futuros módulos | continuo | Inventory, staff, chef on demand |
-
-Total fase 0-4: ~14 semanas de trabajo concentrado.
+| MVP1 — `apps/bot` + `pago/*` migration | 1 sem | Bots migrados, pago landing pages en site |
+| Sprint 2 — `apps/admin` + auth roles | 4 sem | PWA admin, multi-rol |
+| Sprint 3 — `apps/pricing` + `apps/webhooks` | 3-4 sem | Pricing port, MP consolidado |
+| Sprint 4 — `apps/disponibilidad` + hardening | 2 sem | Visor consolidado, observability |
+| Fase 5 — Sunset Make + Stage 2 WA Cloud | 4-6 sem | $0 Make bill, Cloud API direct |
+| Módulos futuros | continuo | Inventory, staff, chef on demand |
 
 Detalle en `ROADMAP.md`.

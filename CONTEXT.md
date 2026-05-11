@@ -1,16 +1,17 @@
 # Contexto verificado — Rincón del Mar
 
-**Última verificación**: 2026-05-10 (Web Claude via Cloudflare + Make MCPs).
+**Última verificación**: 2026-05-11 (Web Claude via Cloudflare + Make MCPs, post-CC corrections).
 
 ## Negocio
 
 Vacation rentals en Pie de la Cuesta, Acapulco (Barrio Mágico desde 2024). Operación familiar de Alexander Horn, 9 años en Airbnb Superhost.
 
-**Propiedades activas (4)**:
+**Propiedades activas (5 roomIds)**:
 | Slug | Beds24 roomId | Capacidad base | Extra | Notas |
 |---|---|---|---|---|
 | `rincon-del-mar` | 78695 | 15 | $300/pax/noche | Premium, pie de playa, chef+cocinera+mozo incluidos |
-| `las-morenas` | 374482 | 15 | $300/pax/noche | A 70m de playa, sin chef (opcional $1k-1.5k/día) |
+| `las-morenas` (direct) | 374482 | 15 | $300/pax/noche | A 70m de playa, sin chef (opcional $1k-1.5k/día) |
+| `las-morenas-airbnb` | 74322 | 15 | $300/pax/noche | Mismo property, diferente listing (Airbnb) |
 | `huerta-cocotera` | 637063 | 4 | $200/pax/noche | Cabaña 1 hectárea, alberca infinity, animales |
 | `combinada` | 74316 | 30 | $300/pax/noche | RdM + Morenas, linked availability, hasta 58-60 pax |
 
@@ -22,112 +23,200 @@ Vacation rentals en Pie de la Cuesta, Acapulco (Barrio Mágico desde 2024). Oper
 
 **Volumen estimado**: 30-100 turnos LLM/día, pico 500/día en temporada (puente del Grito, Navidad, Semana Santa).
 
-## Stack actual (verificado MCPs)
+## Stack actual (verificado via MCPs)
 
-### Cloudflare Workers desplegados
+### Cloudflare Workers desplegados (5)
 
-| Worker | Modified | Función |
+| Worker | Status | Función | Acción Fase 0 |
+|---|---|---|---|
+| `rincon-pago` | Activo (2026-05-09) | Hono + TS. MP webhook + auth magic link + Resend + 5 cron jobs | Mover a `apps/worker-pago` |
+| `rincon-tours` | Activo (2026-05-10) | Vanilla TS. Panoramas 360° desde R2 `assetsrdm` | Mover a `apps/worker-tours` |
+| `airdm` | Activo (2026-04-29) | Proxy OpenAI ↔ Anthropic con auto prompt caching. Status uso incierto | Verificar uso → decommission si no |
+| `reservar` | Activo (2026-04-26) | Booking flow standalone con placeholders. Nunca terminado | **Decommission** |
+| `beds24-calendar` | Activo (2026-04-26) | Sirve `disponibilidad.rincondelmar.club` (visor público). Usado por bot | **Keep**, mover a `apps/disponibilidad` Sprint 4 |
+
+### Cloudflare Pages (1)
+
+| Project | Stack | Dominio |
 |---|---|---|
-| `rincon-pago` | 2026-05-09 | Sitio + flujo de booking web + MP webhook + auth magic link + Resend emails + 5 cron jobs |
-| `rincon-tours` | 2026-05-10 | Sirve panoramas 360° (R2 ASSETS) |
-| `reservar` | 2026-04-26 | Booking widget v1 (legacy) |
-| `beds24-calendar` | 2026-04-26 | Lookup pre-existente |
-| `airdm` | 2026-04-29 | Función desconocida |
+| `apps/web` | **Astro 5.18.1 + React 19.2.6 islands** + adapter cloudflare 12.6.7 | `rincondelmar.club` |
 
-### `rincon-pago` (lo más relevante)
+**Importante**: `apps/web` NO migra a Workers Static Assets. Stays en CF Pages para preservar SSR routes + content collections + sitemap auto-gen.
 
-Framework: Hono 4.12 + TypeScript + wrangler 3.91 + pnpm.
+### `apps/web` (Astro) — detalle
 
-**Bindings deducidos del bundle**:
-- `DB` — D1 database con tablas `bookings, users, verifications, magic_links, sessions` (y probablemente más).
-- `KV_IDEMPOTENCY` — KV para idempotency del webhook MP.
-- Secrets: `MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, RESEND_API_KEY, RESEND_FROM_DOMAIN, MAKE_CONFIRM_WEBHOOK_URL, SITE_URL`.
+- Astro 5.18.1 + adapter cloudflare 12.6.7 (static + SSR)
+- React 19.2.6 (islands)
+- Drizzle ORM 0.45.2 (schema en `apps/web/src/lib/db-schema.ts`)
+- **Better Auth 1.6.9** ya integrado (`apps/web/src/lib/auth.ts`)
+- Vitest 2.1.8 + happy-dom 15.11.7
+- Wrangler 3.91.0 + compatibility_date `2026-04-15` + `nodejs_compat_v2`
+- Biome 1.9.4 lint/format
+- TypeScript 5.6.3 strict
+- pnpm 9.12.3 workspaces
 
-**Rutas activas**:
-- `GET /health`
-- `POST /webhook/mp` — HMAC SHA256, manifest `id:{paymentId};request-id:{x-request-id};ts:{ts};`, tolerance 300s, idempotency KV TTL 24h.
-- `GET /exitoso`, `/fallido`, `/pendiente` — páginas post-pago renderizadas desde D1.
+SSR routes en `apps/web/src/pages/api/*`: `/quote, /payment-link, /contact, /waitlist, /auth/*, /booking/hold, /r/click, /tour-tracking`.
 
-**Status de booking** (encontrados en SQL queries):
-`hold` → `pending_payment` → `paid` → `confirmed` → `checked_in` → `completed`. Más: `cancelled, expired, refunded, failed`.
+### `apps/worker-pago` (Hono) — detalle
 
-**Cron jobs** (5):
-- `*/30 * * * *` — `expireHolds()` libera holds caducados, notifica Make para Beds24, manda email.
-- `0 15 * * *` — `preArrivalReminder()` email 1 día antes del check-in.
-- `0 17 * * *` — `reviewRequest()` email 3 días post check-out.
-- `0 */6 * * *` — `authCleanup()` borra verifications/magic_links/sessions expiradas.
-- `0 21 * * *` — `autoCheckinAndComplete()` actualiza status según fecha.
+- Hono 4.12 + TS + Wrangler
+- Bindings: `DB → rincon`, `KV_IDEMPOTENCY`
+- Secrets: `MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, RESEND_API_KEY, RESEND_FROM_DOMAIN, MAKE_CONFIRM_WEBHOOK_URL, SITE_URL`
 
-**Auth**: magic link via Resend. Tablas `verifications` (códigos), `magic_links` (tokens), `sessions` (cookies).
+Routes: `GET /health`, `POST /webhook/mp` (HMAC SHA256 + idempotency KV TTL 24h), `GET /exitoso, /fallido, /pendiente`.
 
-**Diseño tokens** (CSS inline emails y páginas):
-- Primary `#0e6b7a` (teal)
-- Bg `#fdfaf5` (cream)
-- Gold `#c8a96e`
-- Georgia serif para títulos, system-ui para body
+**Decisión `pago.*` migration**: Alexander confirmó migrar a `rincondelmar.club/pago/{exitoso,fallido,pendiente}` (Sprint 1).
 
-**Puente híbrido actual**: el handler MP recibe pago → update D1 → POST a Make (`MAKE_CONFIRM_WEBHOOK_URL`) para que Make confirme en Beds24 (porque el booking de bot WhatsApp no existe en D1, solo en Beds24).
+Cron jobs (5):
+- `*/30 * * * *` — `expireHolds()` libera holds caducados
+- `0 15 * * *` — `preArrivalReminder()` email 1 día antes
+- `0 17 * * *` — `reviewRequest()` email 3 días post
+- `0 */6 * * *` — `authCleanup()` borra verifications/magic_links/sessions expiradas
+- `0 21 * * *` — `autoCheckinAndComplete()` actualiza status
 
-### Make.com (folder 316545)
+Status enum: `hold → pending_payment → paid → confirmed → checked_in → completed`. Más: `cancelled, expired, refunded, failed`.
 
-Sigue activo para bots de mensajería:
+Diseño tokens: `#0e6b7a` (teal), `#fdfaf5` (cream), `#c8a96e` (gold). Georgia + system-ui.
 
-| ID | Nombre | Función |
+### D1 (1 database)
+
+| Database | UUID | Tablas |
 |---|---|---|
-| 4706679 | `wh:bot-router` | Entry desde ManyChat, debounce, routing |
-| 4716928 | `wh:bot-greeter` | LLM 2-stage (Haiku 4.5) + override_rule v4 + multi-room |
-| 4724250 | `wh:bot-booker` | LLM 2-stage + hot-fix C + create_booking en Beds24 + MP link |
-| 4704931 | `wh:tool-executor` | Wrapper Beds24 + MP |
-| 4716901 | `sub:knowledge-refresh-core` | Refresh GitHub + Beds24 calendar cada 2h → DS + R2 |
-| 4719360 | `cron:knowledge-refresh` | Trigger parent del refresh |
-| 4709161 | `wh:mp-listener` | MP webhook legacy (compite con `/webhook/mp` del Worker) |
-| 4709131 | `sub:mp-confirm-payment` | Confirma booking en Beds24 (llamado por Worker via MAKE_CONFIRM_WEBHOOK_URL) |
+| `rincon` | `d81622d7-32e2-40a3-9609-80813c0e8a96` | 10 + `d1_migrations` |
 
-**Datastores Make**:
-- 85638 `rdmbot_knowledge_v2` — prompts, calendar_lookup, calendar_text.
-- 85639 `rdmbot_conversations_v2` — conversation history por subscriber.
-- 85643 `rdmbot_secrets` — anthropic_api_key, github_pat, mp tokens, r2 credentials.
-- 85380 `beds24_auth` — access + refresh tokens (auto-refresh cada 12h).
+Tablas (verificadas via MCP):
+`accounts, bookings, linktree_clicks, magic_links, quote_requests, sessions, tour_views, users, verifications, waitlist`.
 
-### Otros sistemas
+Migrations 0001-0008 documentadas en `migrations/`.
 
-- **ManyChat** — BSP para WhatsApp/FB/IG/TikTok. Custom fields `MakeMsg` (14495426), `bot_paused_until` (14543062), `rdmbot_agent` (14538317). Connection Make `__IMTCONN__` 4268288.
-- **Anthropic API** — Haiku 4.5 con prompt caching. Key en DS 85643.
-- **Beds24 API v2** — propertyId 31862. Token auto-refresh.
-- **MercadoPago** — 33% depósito, resto en efectivo a la llegada. HMAC webhook secret rotado.
-- **R2** — `rdm-knowledge` bucket (availability.json + prices.json refresh 2h).
-- **GitHub** — `alexanderhorn6720/rdm-greeter-kb` privado (prompts + knowledge JSONs).
-- **Resend** — emails transaccionales desde `email.rincondelmar.club`.
+### KV namespaces
+
+| Worker | KV |
+|---|---|
+| `worker-pago` | `KV_IDEMPOTENCY` (`b3035e701ce1492e829f1224d85bc545`) |
+
+A futuro: `KV_KNOWLEDGE` (refresh 2h cron), `KV_SESSIONS_CACHE` (opcional).
+
+### R2 buckets
+
+| Bucket | Uso |
+|---|---|
+| `rdm-knowledge` | KB del bot (availability.json, prices.json, prompts) |
+| `assetsrdm` | Panoramas 360° para `worker-tours` |
+
+## Make.com (folder 316545 + otros)
+
+**34 scenarios totales, 21 activos**.
+
+### Bot pipeline (CRITICAL — migran a `apps/bot` en MVP1)
+
+| ID | Name | Función | Stats |
+|---|---|---|---|
+| 4706679 | `wh:bot-router` | Entry ManyChat, debounce, routing | 2635 exec, 65 err |
+| 4716928 | `wh:bot-greeter` | LLM 2-stage Greeter v5 + override_rule v5 + multi-room | 722 exec, 75 err |
+| 4724250 | `wh:bot-booker` | LLM 2-stage Booker hot-fix C + create_booking + MP link | 63 exec, 30 err |
+| 4704931 | `wh:tool-executor` | Wrapper Beds24+MP para bot | 50 exec, 2 err |
+
+### Knowledge pipeline (cron)
+
+| ID | Name |
+|---|---|
+| 4719360 | `cron:knowledge-refresh` cada 2h |
+| 4719361 | `wh:knowledge-refresh` 15min |
+| 4716901 | `sub:knowledge-refresh-core` (R2 SigV4 manual) |
+
+### Beds24 auth
+
+| ID | Name |
+|---|---|
+| 4704705 | `cron:beds24-token-refresh` cada 12h |
+
+### MP webhooks (dual con Worker)
+
+| ID | Name |
+|---|---|
+| 4709161 | `wh:mp-listener` (HMAC + idempotency) |
+| 4723238 | `wh:mp-pages` (deprecará con `rincondelmar.club/pago/*`) |
+
+### Pricing pipeline (PR3 — sofisticado)
+
+| ID | Name | Detalle |
+|---|---|---|
+| 4718358 | `cron:pricing-daily` | Sonnet 4.5 + 100+ líneas reglas. Hard validator. Email approval rich HTML |
+| 4719127 | `wh:pricing-approve` | Aplica changes a Beds24 |
+| 4719128 | `wh:pricing-reject` | Marca rechazado |
+
+**No es "simple"**: minStay matrix 5×5×4, anti-orphan, last-minute discounts -5% a -25%, floor/ceiling per roomId, prices múltiplos de 250. Port intacto a `apps/pricing` Sprint 3, **no rewrite, no buy PriceLabs**.
+
+### Admin pipeline (PR3 — CC ya construyó)
+
+| ID | Name | Función |
+|---|---|---|
+| 4721276 | `wh:admin-dashboard` | API dashboard |
+| 4721587 | `wh:admin-assets` | Sirve assets admin |
+| 4721249 | `wh:admin-action` | Pause bot, etc. |
+| 4721731 | `wh:admin-send-msg` | Admin manual msg |
+
+Sprint 2 migra a `apps/admin` PWA, NO greenfield.
+
+### Test scenarios (preserve)
+
+| ID | Name |
+|---|---|
+| 4723301 | `_e2e_test` (Greeter) |
+| 4724261 | `_e2e_test_booker` |
+
+### Inactivos / legacy (~18 scenarios)
+
+Bot legacy (`_deprecated:bot-greeter-v1`, `wh:bot-booker-v2-OLD`, `_deprecated:beds24-*`), `sub:mp-confirm-payment` (invalidado), utilities, viejos 2022 (Bodas, Mercadolibre, Android social media). **Fase 5 cleanup**.
+
+### Datastores Make
+
+- 85638 `rdmbot_knowledge_v2` — prompts, calendar_lookup, calendar_text
+- 85639 `rdmbot_conversations_v2` — conversation history
+- 85643 `rdmbot_secrets` — anthropic_api_key, github_pat, mp tokens, r2 creds
+- 85380 `beds24_auth` — access + refresh tokens
+- 85677 `pricing_proposals` — changes pendientes de approve
+
+## Otros sistemas
+
+- **ManyChat** — BSP. Custom fields `MakeMsg` (14495426), `bot_paused_until` (14543062), `rdmbot_agent` (14538317). Connection 4268288.
+- **Anthropic API** — Haiku 4.5 con prompt caching.
+- **Beds24 API v2** — propertyId 31862.
+- **MercadoPago** — 33% depósito, resto efectivo. HMAC rotado.
+- **GitHub** — `alexanderhorn6720/rdm-greeter-kb` (KB) + `rincondelmar-bot` (código privado).
+- **Resend** — emails desde `email.rincondelmar.club`.
 
 ## Conflicto actual: dos fuentes de verdad para bookings
 
-- **Booking via sitio web** → INSERT D1 `bookings` → MP preference con `external_reference = booking_id D1`.
-- **Booking via bot WhatsApp** → POST Beds24 directo → MP preference con `external_reference = booking_id Beds24`.
+- Booking web → INSERT D1 `bookings` → MP `external_reference = D1 id`.
+- Booking bot WA → POST Beds24 directo → MP `external_reference = Beds24 id`.
 
-Cuando entra webhook MP:
-- Si `external_reference` es ID D1 → handler actualiza D1 inline ✅.
-- Si `external_reference` es ID Beds24 → handler no lo encuentra en D1 → POST a Make para que Make confirme en Beds24 vía sub-scenario.
+Webhook MP:
+- D1 id → handler actualiza D1 ✅
+- Beds24 id → POST a Make `MAKE_CONFIRM_WEBHOOK_URL` para confirm Beds24
 
-**Esta dualidad debe morir.** Toda la migración apunta a que bookings vivan en D1 como single source of truth, y Beds24 sea downstream (sync via webhooks o cron, no master).
+**Dualidad muere** en MVP1+ cuando `apps/bot` INSERT D1 first. D1 = single source of truth.
 
-## Bugs y deuda técnica actuales
+## Bugs y deuda actuales
 
-1. `escapeJSON()` no funciona en Make `http:MakeRequest` → workaround Code module previo con `JSON.stringify()`. Fixed en Greeter v4 + Booker hot-fix C.
-2. Booker Make en estado frágil tras varias iteraciones recientes (Greeter v4 + hot-fix C).
-3. Property IDs duales (slugs en Worker, numéricos en Beds24/Make) sin tabla de mapping persistente.
-4. Knowledge refresh duplicado: Make `sub:knowledge-refresh-core` corre paralelo a cualquier refresh nuevo del Worker (no existe aún).
-5. `reservar.rincondelmar.club` legacy worker sigue desplegado, no claro si activo en producción.
-6. Sin observabilidad consolidada: logs Worker en CF, logs Make en su UI, sin agregación.
-7. Sin tests automatizados de bot.
-8. Sin admin UI para editar prompts (todo via Make UI + GitHub).
-9. Sin pricing dinámico (precios fijos manual en Beds24).
+1. `escapeJSON()` no funciona en Make `http:MakeRequest` → workaround Code module previo. Fixed.
+2. Booker Make estado frágil tras iteraciones. Greeter v5 deployed 2026-05-11.
+3. Property IDs duales (slugs vs numéricos) sin tabla mapping persistente.
+4. **Dual MP handler activo**: Worker `rincon-pago` + Make `wh:mp-listener`. Cuál es autoritativo necesita verificación.
+5. `reservar.rincondelmar.club` legacy worker activo pero incompleto. Decommission Sprint 0.
+6. Sin observabilidad consolidada.
+7. Sin tests automatizados (excepto los 100 ad-hoc local + e2e scenarios Make).
+8. Pricing agent error rate 45% (22 exec, 10 err). Debug durante port.
+9. `airdm` Worker uso incierto.
 
-## KPIs actuales (estimados, no medidos)
+## KPIs (estimados)
 
-- Latencia turno LLM p50 (Greeter Make): ~10s.
-- Error rate Greeter post v4: ~2-5% (estimado).
-- Error rate Booker post hot-fix C: a verificar con tests reales.
-- Conversion bot WhatsApp → booking confirmado: desconocido (no instrumentado).
-- Costo Make: $30-80/mes (varía).
-- Costo Anthropic: ~$10-30/mes (con caching).
-- Costo Cloudflare: ~$5-10/mes.
+- Greeter Make latency p50: ~10s
+- Greeter error rate post-v5: ~10% (75/722)
+- Booker error rate post-hot-fix C: ~47% (30/63) — alto, verificar
+- Conversion bot WA → booking: desconocido
+- Costo Make: ~$30-80/mes
+- Costo Anthropic: ~$10-30/mes
+- Costo Cloudflare: ~$5-10/mes
+- Future Stage 2: Meta Cloud API $0.04-0.10/conv = $40-100/mes adicionales MX

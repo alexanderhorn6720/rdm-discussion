@@ -1,184 +1,287 @@
-# 05 — Auth: magic link unificado multi-rol
+# 05 — Auth: extender Better Auth + WhatsApp OTP
 
-**Status**: Propuesta. Esperando voto.
+**Status**: Reescrita 2026-05-11 post-CC correction (Better Auth ya en producción) + Alexander A6 voto (WhatsApp OTP como 2da opción).
 
-**Decisión**: Mantener magic link auth existente en `apps/site`, extraer a `packages/auth`, extender con tabla `user_roles` para soportar cliente / staff / admin con un solo flujo de login.
+**Decisión**: **Extender Better Auth** (ya en producción) extrayéndolo a `packages/auth` y agregando:
+1. Tabla `user_roles` para multi-rol (customer/staff/admin/chef/owner)
+2. Tabla `user_identities` para vincular WhatsApp/IG/FB/TT con email
+3. Magic link via Resend (existente) + **WhatsApp OTP como 2da opción**
+4. NO password (Alex confirmó A6)
 
 ## Contexto
 
-Estado actual (verificado): `rincon-pago` ya tiene `users, verifications, magic_links, sessions` en D1, manda magic link via Resend, mantiene sessions. Auth funciona para clientes web del flujo de booking.
+**Versión original (2026-05-10) de este documento propuso "custom magic link auth"**. Era incorrecto — Better Auth 1.6.9 ya está integrado en producción desde ~1 mes atrás:
 
-Alexander pidió: "Admin board para clientes, administración y staff con magic link".
+- `apps/web/src/lib/auth.ts`
+- Drizzle adapter con tablas `users, sessions, accounts, verifications`
+- Magic link via Resend funcionando
+- 4 cascading bugs ya resueltos (snake_case adapter, `updated_at`, `ipAddress` camelCase, `@react-email/render` falla → HTML inline fallback)
 
-## Diseño
+CC en thread/00 explicó:
+> "Las gotchas ya están resueltas en este código. Recomendación: extender, no swap."
 
-### Schema D1 extendido
+Alex en thread/01 A6 dijo:
+> "Sí magic link, o código por WhatsApp"
+
+→ Magic link como default + WhatsApp OTP como segunda opción.
+
+## Lo que existe hoy
+
+### Better Auth 1.6.9 config
+
+`apps/web/src/lib/auth.ts` (referencia, no commitear código real):
+
+```typescript
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { magicLink } from "better-auth/plugins";
+import { db } from "@/lib/db";
+
+export const auth = betterAuth({
+  database: drizzleAdapter(db, { provider: "sqlite" }),
+  user: {
+    additionalFields: {
+      // ej. preferred_lang
+    },
+  },
+  session: {
+    cookieCache: { enabled: true, maxAge: 5 * 60 },
+    expiresIn: 30 * 24 * 60 * 60, // 30 días
+  },
+  plugins: [
+    magicLink({
+      sendMagicLink: async ({ email, url }) => {
+        // Resend con HTML inline fallback
+        // @react-email/render NO funciona en CF Workers runtime
+      },
+    }),
+  ],
+});
+```
+
+### Schema D1 actual (auth-related)
 
 ```sql
--- Tabla existente, sin cambios mayores
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,           -- ULID o UUID
-  email TEXT NOT NULL UNIQUE,
-  name TEXT,
-  phone TEXT,                    -- E.164, opcional
-  created_at INTEGER DEFAULT (strftime('%s','now')),
-  updated_at INTEGER DEFAULT (strftime('%s','now')),
-  last_login_at INTEGER,
-  status TEXT DEFAULT 'active'   -- active | suspended | deleted
-);
+-- Better Auth core
+users (id, email, name, emailVerified, image, createdAt, updatedAt, ...additionalFields)
+accounts (id, accountId, providerId, userId, accessToken, refreshToken, ...)
+sessions (id, userId, token, expiresAt, ipAddress, userAgent, ...)
+verifications (id, identifier, value, expiresAt, ...)
 
--- Nueva: roles multi-tenant
+-- Custom additions
+magic_links (token, email, expiresAt, ...)
+```
+
+### Endpoints Better Auth
+
+Mounted en `apps/web/src/pages/api/auth/[...all].ts`:
+- `POST /api/auth/magic-link` — request link
+- `GET /api/auth/verify` — consume link, crea session
+- `POST /api/auth/sign-out` — destroy session
+- `GET /api/auth/session` — current session info
+
+## Plan de extensión
+
+### Step 1 — Extraer a `packages/auth` (MVP1 Sprint)
+
+```
+packages/auth/
+├── src/
+│   ├── index.ts           ← export configured `auth` instance
+│   ├── config.ts          ← betterAuth config con todos los plugins
+│   ├── adapters/
+│   │   └── d1.ts          ← Drizzle adapter wrapper
+│   ├── plugins/
+│   │   ├── whatsapp-otp.ts  ← custom Better Auth plugin (Sprint 2)
+│   │   └── multi-role.ts    ← role checks middleware
+│   ├── schema.ts          ← Drizzle schema definitions (reusable)
+│   ├── emails/
+│   │   ├── magic-link.html.ts  ← HTML inline (CF Workers compat)
+│   │   └── otp.html.ts         ← Sprint 2
+│   └── types.ts
+└── package.json
+```
+
+`apps/web`, `apps/bot`, `apps/admin`, `apps/api` todos importan `import { auth } from '@rdm/auth'`.
+
+### Step 2 — Agregar `user_roles` table (Sprint 2 con admin)
+
+```sql
 CREATE TABLE user_roles (
   user_id TEXT NOT NULL,
-  role TEXT NOT NULL,            -- 'customer' | 'staff' | 'admin' | 'chef' | 'owner'
-  scope TEXT,                    -- p.ej. property_id ('rincon-del-mar') o NULL para global
+  role TEXT NOT NULL,
+  scope TEXT,                    -- p.ej. property_id, o NULL para global
   granted_at INTEGER DEFAULT (strftime('%s','now')),
   granted_by TEXT,
   PRIMARY KEY (user_id, role, scope),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
+```
 
--- Nueva: vinculación con channels (WhatsApp, IG, FB, TT)
+| Role | Capabilities |
+|---|---|
+| `customer` | Sus reservas, perfil, historial |
+| `staff` | Bookings, conversations (read + take over), pricing read-only |
+| `chef` | Recipes (Sprint futuro), inventory read |
+| `admin` | Todo de staff + edit prompts/configs/pricing + gestionar users |
+| `owner` | Read-only de su propiedad (si Alex hostea terceros) |
+
+Initial seed: Alexander tiene `admin` global.
+
+### Step 3 — Magic link sigue funcionando (MVP1)
+
+Sin cambios al flujo actual. Solo extraer al package.
+
+### Step 4 — WhatsApp OTP plugin (Sprint 2)
+
+```typescript
+// packages/auth/src/plugins/whatsapp-otp.ts
+import { BetterAuthPlugin } from "better-auth";
+
+export const whatsappOTP = (): BetterAuthPlugin => ({
+  id: "whatsapp-otp",
+  endpoints: {
+    sendOTP: createEndpoint("/whatsapp-otp/send", async (ctx) => {
+      // 1. Validate phone E.164
+      // 2. Generate 6-digit code
+      // 3. Hash + store in `verifications` con TTL 10min
+      // 4. Send via:
+      //    Stage 1 (MVP+): ManyChat HSM template "rdm_otp" si está aprobado
+      //    Stage 2: WhatsApp Cloud API direct
+    }),
+    verifyOTP: createEndpoint("/whatsapp-otp/verify", async (ctx) => {
+      // 1. Lookup hash en verifications
+      // 2. Si match: UPSERT user via `user_identities` (provider=whatsapp, external_id=phone)
+      // 3. Create session, return cookie
+    }),
+  },
+});
+```
+
+**Stage 1 dependency**: ManyChat HSM template `rdm_otp` aprobado con Meta.
+- Alex action: verificar status del template en Meta Business Manager.
+- Si NO aprobado: defer WhatsApp OTP a Stage 2.
+
+### Step 5 — Tabla `user_identities` (Sprint 2-3)
+
+```sql
 CREATE TABLE user_identities (
   user_id TEXT NOT NULL,
   provider TEXT NOT NULL,        -- 'email' | 'whatsapp' | 'facebook' | 'instagram' | 'tiktok' | 'manychat'
-  external_id TEXT NOT NULL,     -- email, phone E.164, subscriber_id de provider
+  external_id TEXT NOT NULL,     -- email, phone E.164, subscriber_id
   verified_at INTEGER,
-  metadata TEXT,                 -- JSON con datos del provider
+  metadata TEXT,                 -- JSON
   PRIMARY KEY (provider, external_id),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE INDEX idx_user_identities_user ON user_identities(user_id);
-
--- Existing magic_links, verifications, sessions sin cambios mayores
 ```
 
-### Roles
+Use case: cliente entra al bot WhatsApp, después al sitio — sistema detecta match (booking con email = subscriber con phone) y vincula los identities → bot conoce historial.
 
-| Role | Capabilities |
+### Step 6 — Multi-role middleware
+
+```typescript
+// packages/auth/src/plugins/multi-role.ts
+import { auth } from "../config";
+
+export async function requireRole(
+  request: Request,
+  role: string,
+  scope?: string
+) {
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session) return null;
+
+  const roles = await getRolesForUser(session.user.id);
+  const allowed = roles.some(r =>
+    r.role === role && (!scope || r.scope === null || r.scope === scope)
+  );
+
+  return allowed ? session : null;
+}
+```
+
+Uso en `apps/admin`:
+```typescript
+const session = await requireRole(c.req.raw, "admin");
+if (!session) return c.text("unauthorized", 401);
+```
+
+### Step 7 — Cross-app session (cookie scope)
+
+Cookie `Domain=.rincondelmar.club` permite que `site`, `admin`, `api` compartan session.
+- `bot.rincondelmar.club` no necesita session de user (recibe webhook con HMAC).
+
+## Stage 1 vs Stage 2 timing
+
+| Componente | Stage 1 (MVP1-Sprint 2) | Stage 2 (mes 4+) |
+|---|---|---|
+| Magic link via email | ✅ Better Auth existing | ✅ Same |
+| WhatsApp OTP | ❌ NO (depende de ManyChat HSM o defer) | ✅ Via Cloud API direct (simplificado) |
+| Cookie cross-subdomain | ✅ Sprint 0-1 | Same |
+| `user_roles` | ✅ Sprint 2 con admin | Same |
+| `user_identities` | ✅ Sprint 2-3 | Same |
+| Multi-role middleware | ✅ Sprint 2 | Same |
+| OAuth (Google, etc.) | ❌ No prioridad | Considerar si Alex pide |
+
+## Comparación: por qué seguimos con Better Auth
+
+### Por qué NO swap a custom
+
+| Razón | Detalle |
 |---|---|
-| `customer` | Ver sus propias reservas, modificar perfil, ver historial |
-| `staff` | Acceso a bookings, conversations (read + take over), ver pricing (read-only) |
-| `chef` | Acceso a admin/recipes, inventory para insumos (futuro módulo) |
-| `admin` | Todo de staff + edit prompts, configs, pricing rules, gestionar usuarios |
-| `owner` | Read-only de su propiedad (si Alexander hostea propiedades de terceros) |
+| **Ya está en producción** | 1 mes operando, los 4 bugs cascading resueltos |
+| **Resend + HTML inline fallback** | Workaround documentado, no reaparece |
+| **Drizzle adapter** | Snake_case quirk conocido |
+| **Sessions con cookie httpOnly + sameSite** | Defaults correctos |
+| **Plugin system** | Extender (WhatsApp OTP) sin reescribir core |
+| **Comunidad activa** | Fixes y nuevas features rápido |
 
-Roles son aditivos (un user puede ser `staff` + `admin`). Scope opcional para limitar a propiedad específica.
+### Por qué NO Clerk/Auth0
 
-### Flujo de login
+| Razón | Detalle |
+|---|---|
+| **$25-99/mes** desde primer user | Ya pagamos Resend |
+| **Data del cliente fuera de nuestra D1** | Privacy + lock-in |
+| **Magic link via su sistema** | No usa Resend |
+| **No OAuth strict necessity** | Magic link es suficiente |
 
-```
-1. User entra a admin.rincondelmar.club o /mi-cuenta del sitio
-2. Submite email
-3. Worker:
-   - INSERT INTO magic_links (token, email, expires_at = now+15min, scope)
-   - Resend email con link https://{host}/auth/verify?token=...
-4. User click link
-5. Worker:
-   - SELECT magic_link, verify expires_at > now
-   - UPSERT INTO users (email) si no existe (status='active' default)
-   - INSERT INTO sessions (user_id, token, expires_at = now+30d)
-   - Set-Cookie: session={token}; HttpOnly; Secure; SameSite=Lax; Max-Age=...
-   - DELETE magic_link consumido
-   - Redirect a host original
-6. Cada request:
-   - getSession(req.cookies.session) → user + roles[]
-   - middleware requireRole('admin') etc.
-```
+### Por qué NO Lucia
 
-### Cross-app session
+Deprecated v3 en 2025. Ya descartado.
 
-Sessions deben funcionar en `site`, `admin`, `bot` (vía same-origin subdomain cookie).
+## Riesgos
 
-Cookie scope: `Domain=.rincondelmar.club` para que `site`, `admin`, `api` compartan.
+| Riesgo | Mitigación |
+|---|---|
+| Better Auth breaking change major version | Pin version 1.x, evaluate v2 cuando llegue |
+| Plugin system instability | Use solo plugins core (magic-link, etc.) + custom plugins propios |
+| `@react-email/render` failures | HTML inline fallback (igual que existing) |
+| Drizzle snake_case bugs | Tests E2E flow auth completo en CI |
+| WhatsApp HSM template approval delays | Defer WhatsApp OTP a Stage 2 si Stage 1 timing apretado |
 
-`bot.rincondelmar.club` no necesita session de usuario web (recibe webhook autenticado por HMAC).
+## Action items
 
-### Vinculación WhatsApp ↔ Email
-
-Cuando un cliente entra al bot WhatsApp y luego visita el sitio:
-
-1. Bot crea `user_identities(provider='whatsapp', external_id=phone_e164)` SIN `user_id` (anonymous channel user).
-2. Cliente entra al sitio, se loguea con email → tiene `user_id`.
-3. Sistema detecta que el phone del subscriber WA matches algún booking con email del user → vincula: UPDATE user_identities SET user_id=? WHERE provider='whatsapp' AND external_id=?
-4. Futuras conversaciones del bot conocen al user → contexto enriquecido (booking history, etc.).
-
-Privacy: lo hacemos sólo cuando hay match explícito (no scraping).
-
-### Magic link rate limiting
-
-Para evitar abuse:
-- 5 magic links por email por hora.
-- 20 magic links por IP por hora.
-- KV `auth:rl:email:{e}` y `auth:rl:ip:{ip}` con expirationTtl=3600.
-
-### Magic link content
-
-Email Resend template:
-```
-Hola {{name || 'Hola'}},
-
-Para entrar a Rincón del Mar, haz click aquí:
-
-{{magic_link_url}}
-
-Este link expira en 15 minutos. Si no fuiste tú, ignora este email.
-
-— Equipo Rincón del Mar
-```
-
-Subject: `Tu link de acceso a Rincón del Mar`.
-
-### Multi-rol UI
-
-Si user tiene roles `['customer', 'staff']`, después del login muestra selector "Modo cliente" / "Modo staff" (igual que Slack workspaces). Cookie de sesión guarda el `active_role`.
-
-### Sessions storage
-
-Hoy: D1 `sessions` table.
-
-**Considerar Durable Object** para sessions activas (hot path). DO con SQLite es ~10x faster reads que D1 para single-row lookups.
-
-Pros: latency.
-Cons: complejidad, 1 DO per session crea N DOs.
-
-**Recomendación**: empezar con D1 + KV cache (KV `session:{token}` con TTL 5min). DO solo si latency duele en producción.
-
-## Comparación con Better Auth, Lucia, Clerk
-
-### Clerk / Auth0 (managed)
-
-**Pros**: Zero infra. Múltiples providers (OAuth Google, Apple).
-**Cons**: $25-99/mes desde el primer user. Lock-in. Datos del cliente fuera de nuestra D1. Magic link tiene que ir via su sistema, no Resend ya pagado.
-**Veredicto**: No. Tenemos la auth ya funcionando con Resend que ya pagamos.
-
-### Better Auth (open source, framework-agnostic)
-
-**Pros**: Library moderna 2025-2026. Magic link, OAuth, 2FA, MFA, organizations, multi-tenant built-in. Schema adapters para D1/Drizzle.
-**Cons**: Library joven. Algunos quirks con Workers runtime.
-**Veredicto**: **Evaluar**. Si CC lo conoce y le gusta, swap nuestro custom por Better Auth ahorra tiempo de mantenimiento. Si no, custom está bien y funciona.
-
-### Lucia (deprecated)
-
-Lucia v3 está deprecated en 2025. NO.
-
-### Custom (lo que tenemos)
-
-**Pros**: Funciona. Conocido. Cero deps externas.
-**Cons**: Maintenance. Cualquier feature nueva (2FA, OAuth) la construimos.
-
-## Recomendación
-
-**Custom enhanced** — extraer `rincon-pago` auth a `packages/auth`, agregar `user_roles` table, soportar multi-rol. Si Claude Code tiene experiencia con Better Auth y prefiere, swappable.
+- [ ] **MVP1 Sprint**: extraer `apps/web/src/lib/auth.ts` a `packages/auth/`
+- [ ] **MVP1 Sprint**: cookie scope `.rincondelmar.club` para multi-app
+- [ ] **Sprint 2**: agregar `user_roles` table + migrations
+- [ ] **Sprint 2**: middleware `requireRole`
+- [ ] **Sprint 2**: confirmar ManyChat HSM template `rdm_otp` con Alex
+  - Si aprobado: implementar WhatsApp OTP plugin Stage 1 con ManyChat
+  - Si no: defer plugin a Stage 2 (Cloud API)
+- [ ] **Sprint 2-3**: `user_identities` table + lookup heuristics (phone E.164 → email matching)
+- [ ] **Stage 2 (mes 4+)**: WhatsApp Cloud API direct plugin
 
 ## Voto
 
-- [ ] **Claude Code**: ¿Custom o Better Auth? Otra preferencia?
-- [ ] **Alexander**: ¿OK con magic link como único método de auth (sin password)? Mi voto: sí, password no aporta valor cuando ya hay email verificado.
+- [x] **Alexander** (A6 thread/01): magic link + WhatsApp OTP como 2da opción, sin password
+- [x] **Claude Code** (thread/00): extender Better Auth, no swap
+- [ ] **Web Claude**: align con CC + Alex. Voto: extender. Pregunta abierta sobre WhatsApp OTP Stage 1 vs Stage 2 depende de HSM template status.
 
-## Notas de implementación
+## Refs
 
-- 2FA por SMS/TOTP opcional para `admin` role en Stage 2.
-- Audit log de admin actions en tabla `audit_log` para compliance.
-- Session revocation: admin puede kick sessions de otros users (security).
+- Better Auth docs: `https://better-auth.com/docs`
+- Better Auth plugins guide: `https://better-auth.com/docs/concepts/plugins`
+- Resend docs: `https://resend.com/docs`
