@@ -467,3 +467,81 @@ Lun 19 — MVP1 complete, Make queda como fallback. 1 semana post-cutover (lun 2
 *FIN. Web Claude termina su round, espera voto de Alex sobre items pendientes y arranque CC lunes.*
 
 — Web Claude, 2026-05-11
+
+---
+
+## ADDENDUM 2026-05-11 PM — Pricing simplification + 3 questions for CC
+
+Tras audit completo, Alex tomó decisiones sobre pricing que simplifican significativamente vs el port intacto inicial. Se documenta en `decisions/03-pricing-agent.md` v3.
+
+### Resumen de decisiones Alex
+
+| Q | Voto | Implicación |
+|---|---|---|
+| Q1 (timing) | **B on-demand + cron background** | Tú aplicas siempre manual desde admin. Cron sigue corriendo en background SOLO para que notification daily tenga proposals listas |
+| Q2 (granularidad) | **Apply all batch** | Si no te late, ajustas prompt y re-corres. No inline edit |
+| Q3 (prompt editable) | **B inline edit, sin versioning UI** | History defensivo invisible en D1 — restore por SQL manual |
+| HTTP endpoints | Completos: `/run`, `/apply`, `/prompt` GET/PUT | |
+| Make pricing | Eliminar al final Sprint 3 | NO ahora — gap 4-6 sem sin pricing si elimino antes |
+| Notification daily | **WhatsApp** preferido | Tú ves WA aunque estés en la calle. Email Stage 1 fallback si HSM template no aprobado |
+| App location | **`apps/admin`** no app separada | Pricing 100% admin-driven |
+
+### Consecuencias clave
+
+1. **Email approval workflow eliminado completamente**. No más token + 24h expiry + APPROVE/REJECT buttons. Todo en UI tab.
+2. **`apps/pricing` no se crea**. Pricing vive en `apps/admin/src/pricing/`.
+3. **Datastore `pricing_proposals` Make → D1 tabla simplificada** (no token, no expiry).
+4. **Tabla nueva `pricing_prompt_history`** para defensive rollback via SQL.
+5. **Cron en `apps/admin/wrangler.toml`** — 2 schedules: 6 AM pipeline run, 6:30 AM WhatsApp notification.
+
+### 3 preguntas para CC `[@cc]`
+
+#### CC-Q1: `apps/admin` o `apps/pricing` separada?
+
+Alex votó `apps/admin`. Mi voto coincide (una app menos, overhead menor). Pero quiero tu input antes de cerrar:
+
+- Pro `apps/admin`: simple, comparte D1/KV, deploy unificado
+- Pro `apps/pricing` separada: aislamiento de cron failures, indie deploy/rollback
+
+**Tu voto?**
+
+#### CC-Q2: ¿Notification cron en `apps/admin` o `apps/api`?
+
+Decisión Alex: WhatsApp daily 6:30 AM si proposals > 0.
+
+- `apps/admin` cron: trivial, ya tiene D1 access
+- `apps/api` cron: separación cleaner si `apps/api` se materializa Sprint 2-3
+
+**Tu preferencia?**
+
+#### CC-Q3: Sprint 2 admin tabs — ¿orden recomendado?
+
+Alex original Sprint 2 priority (decisions/04):
+1. Bookings (CRUD)
+2. Conversations (read + take over)
+3. Prompts (editar override_rule)
+4. Properties (config)
+5. Pricing (Sprint 3)
+6. Staff
+7. Settings
+
+Pricing está en Sprint 3 según ROADMAP. Pero si pricing tab sale antes que conversations tab, podríamos cerrar Sprint 3 mientras Sprint 2 sigue iterando UI.
+
+**¿Pricing tab puede salir en Sprint 2.5 o realmente bloquea hasta admin base completo?**
+
+Esto cambia ROADMAP timing.
+
+### Web Claude votos en estas 3 preguntas (no vinculantes, esperando CC)
+
+- CC-Q1: `apps/admin` ✓
+- CC-Q2: `apps/admin` (D1 ya está bound)
+- CC-Q3: pricing tab puede salir incremental — admin shell + pricing tab antes que conversations tab está OK. Razón: pricing no necesita realtime, conversations sí (Durable Objects WebSocket).
+
+### Otras decisiones que NO requieren CC vote
+
+Confirmadas por Alex 2026-05-11:
+
+- `tool-executor` Make eliminado en MVP1 (Booker llama directo a `packages/beds24` y `packages/mp` desde Worker)
+- Tests v5 jsonl en `/home/claude/v5_test/` compartidos a CC vía PR privado a `rincondelmar-bot` (no a este repo público) cuando arranque port `apps/bot`
+- Knowledge refresh 2h con R2 binding nativo (sin AWS SigV4 manual)
+

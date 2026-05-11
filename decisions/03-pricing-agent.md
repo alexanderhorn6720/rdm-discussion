@@ -1,233 +1,321 @@
-# 03 — Pricing agent: port intacto del existente
+# 03 — Pricing agent: simplified port to admin
 
-**Status**: Reescrita 2026-05-11 post-decisión Alexander (A2/A5) + audit de Web Claude.
+**Status**: Reescrita 2026-05-11 v3 post-decisión Alex on-demand + apply-all-batch.
 
-**Decisión**: **Port intacto** del pricing agent custom existente en Make (`cron:pricing-daily`, `wh:pricing-approve`, `wh:pricing-reject`) a `apps/pricing` Worker. **NO comprar PriceLabs/Beyond/Wheelhouse. NO build from scratch. NO heuristic simple.**
+**Decisión**: Pricing pipeline migra a `apps/admin` (no app separada) como **tab "Pricing"** con UX simplificada:
 
-## Contexto
+1. **On-demand**: tú das click "Run pricing now" en admin → pipeline ejecuta → propuestas en pantalla
+2. **Apply all batch**: si te late el resultado, botón "Apply all" → push a Beds24 → done. Si no, ajustas prompt y re-corres
+3. **Prompt editable inline** desde admin (Q3=B) con history defensivo invisible (D1 tabla `pricing_prompt_history`, no UI rollback)
+4. **Notification daily WhatsApp** con count de proposals pending (sin botón, solo recordatorio)
+5. **Cron en background** ejecuta pipeline diario para que la notification tenga proposals listas — pero NO aplica auto. Tú aplicas siempre desde admin.
+6. **Make scenarios eliminados al final de Sprint 3**, post-cutover verificado.
 
-**Versión original (2026-05-10) de este documento sugirió "Buy PriceLabs Stage 1 + Build override Stage 2"**. Era una mala recomendación basada en suposición errónea de que no había pricing agent funcional.
+## Iteraciones del documento
 
-Alexander corrigió en thread/01-alexander-votes.md (A2/A5):
+- **v1 (2026-05-10)**: Buy PriceLabs $100/mes + override layer custom. Wrong assumption — pricing agent ya existía.
+- **v2 (2026-05-11)**: Port intacto del Make scenario sofisticado. Better, but mantenía email approval + token + 24h expiry workflow innecesario.
+- **v3 (2026-05-11 PM)** este doc: simplified — on-demand desde admin, apply all batch, sin email approval. Alex decisiones C1+C2+C3 + Q1=B + Q2=apply all + Q3=B.
 
-> "Claude Web no analizó bien pricing agent actual en Make, es simple. No habrá PriceLabs."
+## Lo que existe hoy en Make (referencia)
 
-Web Claude auditó el blueprint actual y encontró que el pricing agent **no es simple**: es sofisticado, calibrado para el negocio, y mejor que cualquier SaaS out-of-box para este caso de uso específico.
+Ver decisions/03 v2 commit anterior + thread/02 sección 5 para audit completo.
 
-## Lo que existe hoy (auditado 2026-05-11)
+Resumen para esta v3: 
+- `cron:pricing-daily` (4718358): cron diario Sonnet 4.5 + hard validator + email HTML approval
+- `wh:pricing-approve` (4719127): consume token, aplica a Beds24
+- `wh:pricing-reject` (4719128): marca rechazado
+- Datastore `pricing_proposals` (85677): token + 24h expiry + deltas_json
+- Email a alexander@rincondelmar.club con HTML rich
 
-### `cron:pricing-daily` (4718358)
+## Qué simplificamos vs Make actual
 
-**Schedule**: Lun-Dom 06:00-06:01 cada 15min (efectivamente diario 6 AM).
+| Componente Make | v3 admin port | Razón |
+|---|---|---|
+| Cron `*/15` filtrado a 6 AM | Cron diario background (mantenido) | Sigue necesario para que daily WhatsApp notification tenga proposals listas |
+| Email HTML rich con APPROVE/REJECT buttons | UI tab en `apps/admin/pricing` | Email approval workflow es overhead. UI directa más simple |
+| Token único + 24h expiry | Eliminado | No hay deadline para aplicar; admin siempre puede correr nuevo |
+| Datastore `pricing_proposals` con status flow | D1 tabla `pricing_proposals` (current state) + `pricing_prompt_history` | Simplificado: last_run, deltas, status. No token workflow |
+| `wh:pricing-approve` separado | `POST /pricing/apply` endpoint | Mismo endpoint dentro de admin |
+| `wh:pricing-reject` | Eliminado | Si no aplicas, simplemente ignoras o re-corres con prompt distinto |
 
-**Pipeline**:
+## Lo que se mantiene intacto
 
-1. **Get tokens** (datastores `beds24_auth` + `rdmbot_secrets`)
-2. **Beds24 calendar** GET `/v2/inventory/rooms/calendar` con `startDate=today, endDate=today+360d, includePrices=true, includeMinStay=true, includeNumAvail=true, includeOverride=true`
-3. **Beds24 bookings** GET `/v2/bookings` con `departureFrom=today, arrivalTo=today+360d, includeInvoiceItems=true, status=confirmed`
-4. **Code module pre-LLM** (~50 líneas JS):
-   - Limpia calendar a ranges compactos
-   - Calcula `confirmed_income, payments, balance_pending` cross-property
-   - Agrupa bookings by_month con count
-   - Calcula `financial_summary` per propiedad/mes
-5. **POST Anthropic** (Sonnet 4.5, 12K tokens, ephemeral caching) con:
-   - System prompt 100+ líneas con reglas operativas detalladas
-   - User content: JSON con `today, horizon_days, rooms, calendar, bookings, financial_summary`
-6. **Code module post-LLM** (~80 líneas JS): hard validator
-7. **Datastore add** `pricing_proposals` (85677) con token único + 24h expiry
-8. **Email** con HTML rich a alexander@rincondelmar.club con tabla, warnings, auto-corrected list, APPROVE/REJECT buttons
+- **System prompt 100+ líneas** con reglas operativas Sonnet 4.5 calibradas
+- **Pre-LLM JS** (~50 líneas): limpia calendar, calcula financial_summary by_month
+- **Hard validator post-LLM** (~80 líneas): valida ranges, auto-corrige multiples de 250, valida floor/ceiling/±20%
+- **Min-stay matrix** 5 propiedades × 5 seasons × 4 horizons
+- **Anti-orphan logic** (gap 1N/2-3N/4N+)
+- **Last-minute discount schedule** (-5% a -25%)
+- **Reglas operativas**: prices múltiplos de 250, NEVER Christmas/HolyWeek/Easter/Sept15, etc.
 
-### System prompt highlights
+## UX en `apps/admin/pricing`
 
-**Hard rules (10)**:
-1. minStay only {2, 3, 4}
-2. Override only `null` or `noCheckIn` (NEVER `blackout`)
-3. Prices MUST be multiples of 250 (e.g. 1500, 1750, 2000 — NEVER 1900, 2850, 8075)
-4. Max +/-20% price change vs current per run
-5. NEVER touch dates with bookings (numAvail=0)
-6. NEVER touch premium seasons: Christmas/NewYear (Dec23-Jan2), Holy Week, Easter, Sept 15
-7. Floor by roomId: 78695=5000, 374482=3500, 74322=3500, 74316=11000, 637063=1500
-8. Ceiling by roomId: 78695=40000, 374482=25000, 74322=25000, 74316=60000, 637063=6000
-9. Saturday always minStay=4
-10. Carnival is NOT premium
-
-**Min-stay matrix** (5 propiedades × 5 seasons × 4 horizons):
-- Christmas: 4 nights todos los horizonte
-- Summer/HolyWeek/Easter/Sept15/May/Muertos: 3 nights typical, 2 if last-minute
-- Low season: 3 → 2 según horizonte
-- Combinada: similar pero excluye discounts
-- Huerta: siempre 2 (más flexible)
-
-**Anti-orphan logic** (gaps 1-4 nights between bookings):
-- Gap 1N: override `noCheckIn`, minStay stays
-- Gap 2-3N: respect base minStay
-- Gap 4N+: bump first day to max(base, 3)
-
-**Last-minute discount schedule** (% off current price):
-- <45d, >=30d: -5%
-- <30d, >=14d: -10%
-- <14d, >=7d: -15%
-- <7d, >=3d: -20%
-- <3d: -25%
-
-Conditions: solo RdM/Morenas/Huerta (NEVER Combinada), solo Low/Mid season (NEVER Christmas/HolyWeek/Easter), día disponible (numAvail=1), current > floor.
-
-**Math**:
-- `raw = current_price * (1 - discount_pct)`
-- `new_price = Math.floor(raw / 250) * 250` (round DOWN to nearest 250)
-- `new_price = max(floor, new_price)`
-- If `new_price === current_price1`, SKIP
-
-### Post-LLM hard validator (~80 líneas)
-
-- Valida cada change: roomId, date format, no past dates, minStay {2,3,4}, override válido
-- Auto-corrige prices al múltiplo de 250 más cercano (down)
-- Valida price floor/ceiling per roomId
-- Valida pct change ≤ 20%
-- Filtra changes que no modifican nada
-- Construye `beds24_payload` agrupado per roomId
-
-### Email approval workflow
-
-HTML rich:
-- Financial summary table (avail nights, occupancy %, confirmed income, upside, probable revenue, notes per mes)
-- Warnings section
-- Auto-corrected prices list
-- Proposed changes table (property, date, change, reason)
-- 2 botones: APPROVE / REJECT con token único + 24h expiry
-- Analysis sections del LLM: executive summary, minstay analysis, orphan analysis, discount analysis, season observations, operational alerts, recommendations
-
-### Stats actuales
-
-- 22 ejecuciones del cron
-- 10 errores (45% — debugging activo, probable: Beds24 timeouts, JSON parse del LLM con `content[1].text` que puede fallar si LLM responde diferente)
-- 5 approves ejecutados
-- 0 rejects (los rechazos requieren que el approve no se haga, no se generan eventos)
-
-## Por qué NO PriceLabs / Beyond / Wheelhouse
-
-| Razón | Detalle |
-|---|---|
-| **Reglas propietarias** | Premium seasons MX, floors per propiedad, mascotas no, Combinada blocks 78695+374482 (linked) — SaaS no soporta |
-| **Chef incluido en RdM** | Pricing más caro vs Morenas. SaaS no entiende |
-| **5 roomIds incluyendo dual listing** | 374482 (direct) + 74322 (Airbnb) son mismo property. SaaS no maneja bien |
-| **Email approval flow** | Alexander aprueba antes de aplicar. SaaS auto-apply o requieren UI propia para approval |
-| **Costo SaaS recurrente** | ~$100/mes ($19.99 × 5 listings) PriceLabs vs $0/mes recurring marginal |
-| **Vendor lock-in** | PriceLabs/Beyond migration sale es trabajo |
-| **Modelo ya calibrado** | 100+ líneas de reglas Operacionales tomó tiempo afinar. Replicar en otro sistema es regresión |
-
-## Por qué NO build from scratch
-
-| Razón | Detalle |
-|---|---|
-| **Ya está construido** | El cron funciona, los emails llegan, las reglas están claras |
-| **Time-to-port < time-to-rebuild** | 1-2 semanas port intacto vs 3-6 meses rewrite |
-| **Riesgo de regresión** | Cualquier rewrite olvida casos edge ya cubiertos |
-| **Sonnet 4.5 prompts ya tuneado** | Los ejemplos de math en el prompt están calibrados para Haiku/Sonnet behavior — replicar requiere re-tuning |
-
-## Plan de port (Sprint 3, post-MVP1)
-
-### `apps/pricing` Worker structure
+### Tab principal
 
 ```
-apps/pricing/
-├── wrangler.toml
-├── src/
-│   ├── index.ts              ← cron handler + manual trigger route
-│   ├── cron.ts               ← orquestación del pipeline
-│   ├── approve.ts            ← POST /approve?token=X endpoint
-│   ├── reject.ts             ← POST /reject?token=X endpoint
-│   ├── beds24-client.ts      ← typed client (delega a packages/beds24)
-│   └── email-template.tsx    ← React Email para approval HTML
-└── package.json
-
-packages/pricing-agent/
-├── src/
-│   ├── index.ts              ← export pipeline orchestrator
-│   ├── prompt.ts             ← system prompt (port intacto del JS string)
-│   ├── pre-llm.ts            ← Code module pre-LLM logic
-│   ├── post-llm.ts           ← hard validator
-│   ├── types.ts              ← Zod schemas
-│   └── pricing-agent.test.ts ← regression tests
-└── package.json
+┌──────────────────────────────────────────────────────────────┐
+│  PRICING                                                     │
+│  Última corrida: hoy 06:00 · 12 proposals pending           │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ [🔄 Run pricing now]  [✏️ Edit prompt]                 │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                              │
+│  Financial Summary (próximos 360 días)                      │
+│  ┌──────┬─────────┬─────────┬──────────┬──────────────────┐ │
+│  │ Mes  │ Avail   │ Occup % │ Confirm  │ Probable revenue │ │
+│  ├──────┼─────────┼─────────┼──────────┼──────────────────┤ │
+│  │ May  │   45    │  22%    │ $180,000 │ $250,000         │ │
+│  │ Jun  │   62    │  18%    │ $145,000 │ $310,000         │ │
+│  │ ...                                                     │ │
+│  └──────┴─────────┴─────────┴──────────┴──────────────────┘ │
+│                                                              │
+│  Proposed changes (12)              [🟢 Apply all]          │
+│  ┌──────────────────────────────────────────────────────┐    │
+│  │ RdM       2026-05-15  minStay=3, price=$8,500 ↓ -5%  │    │
+│  │ Morenas   2026-05-16  override=noCheckIn (orphan)    │    │
+│  │ Huerta    2026-05-17  minStay=2, price=$1,750 ↓ -10% │    │
+│  │ ...                                                  │    │
+│  └──────────────────────────────────────────────────────┘    │
+│                                                              │
+│  Warnings (2)                                                │
+│  ⚠️ Combinada has discount proposed but rules forbid         │
+│  ⚠️ Auto-corrected 8 prices to multiples of 250              │
+│                                                              │
+│  Reasoning (LLM analysis)                                    │
+│  Executive summary: ...                                      │
+│  Minstay analysis: ...                                       │
+│  Discount analysis: ...                                      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Cambios respecto a Make
+### Flujo del usuario (loop)
 
-1. **D1 reemplaza datastore `pricing_proposals`**:
-   ```sql
-   CREATE TABLE pricing_proposals (
-     token TEXT PRIMARY KEY,
-     status TEXT NOT NULL DEFAULT 'pending',  -- pending | approved | rejected | expired | applied | error
-     summary TEXT,
-     deltas_json TEXT NOT NULL,
-     created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-     expires_at INTEGER NOT NULL,
-     applied_at INTEGER,
-     apply_response TEXT
-   );
-   ```
+1. Alex llega al tab, ve "12 proposals pending" (del cron daily background)
+2. Revisa Financial Summary + proposed changes + warnings
+3. **Si le late**: click "Apply all" → POST `/pricing/apply` → Beds24 batch update → success toast → tab refresca con "0 pending"
+4. **Si no le late**: click "Edit prompt" → ajusta system prompt en Monaco editor → save → click "Run pricing now" → 30-60s wait → re-renders con nuevos proposals → revisa → loop hasta "Apply all"
+5. **Si quiere descartar**: simplemente cierra el tab. No se aplica nada. Al día siguiente nuevo cron, nuevos proposals.
 
-2. **React Email reemplaza HTML inline**:
-   - Usa `packages/email-templates` (ya existe)
-   - Mismo diseño, mejor maintainability
-   - Cuidado: `@react-email/render` falla en CF Workers runtime (CC reportó). Usar HTML inline fallback igual que Better Auth.
+### Edit prompt screen
 
-3. **APPROVE/REJECT URLs apuntan a `apps/pricing`**:
-   - `https://api.rincondelmar.club/pricing/approve?token=X` (Sprint 2-3 cuando `apps/api` exista)
-   - O directo `https://pricing.rincondelmar.club/approve?token=X` (sin subdomain extra)
-   - Decide CC
+Monaco editor con sintaxis markdown:
+- Read-only view del current prompt
+- Click "Edit" → editable
+- "Save" → updates D1 + KV cache → next run usa nuevo prompt
+- **History defensivo invisible**: cada save inserta row en `pricing_prompt_history` (timestamp + author user_id + prompt_text). NO UI rollback en MVP1. Si Alex rompe el prompt, restore es manual SQL: `SELECT prompt_text FROM pricing_prompt_history ORDER BY created_at DESC LIMIT 5`.
 
-4. **Anthropic client desde `packages/llm-client`**:
-   - Mismo wrapper que `apps/bot` para reutilizar prompt caching + telemetry
+### Notification daily WhatsApp
 
-5. **Tests regresión**:
-   - Capturar payloads reales actuales del cron Make (calendar+bookings)
-   - Snapshot LLM output esperado
-   - Replay contra `apps/pricing` y compare deltas
+Cron diario (`apps/admin` o `apps/api` cron) ~6:30 AM:
+- Lee count de proposals pending
+- Si > 0: envía WhatsApp HSM template:
+  ```
+  Pricing pending review.
+  Tap to open: https://admin.rincondelmar.club/pricing
+  
+  {{count}} changes proposed including {{last_minute_count}} last-minute.
+  ```
+- Si == 0: no envía nada (no spam)
 
-### Migración cutover
+**Stage 1**: WhatsApp HSM template approval pendiente. Hasta que esté aprobado, fallback email. CC verifica.
+**Stage 2** (Cloud API direct): trivial.
 
-1. `apps/pricing` deployment con cron paralelo a Make (mismo schedule)
-2. Compare outputs por 5-7 días — alertar si difieren > 10%
-3. Switch authoritative source: Make → `apps/pricing`
-4. Pause Make `cron:pricing-daily` (no delete, fallback 14 días)
-5. Sunset Make scenario en Fase 5
+## Architecture: `apps/admin` no `apps/pricing`
 
-## Errores actuales a resolver durante port
+Decision Alex 2026-05-11: pricing vive en `apps/admin`, no app separada.
 
-10 errores en 22 exec. Hipótesis:
+Reasons:
+- Pricing es 100% admin-driven (on-demand)
+- No hay public endpoint exposed
+- Una app menos = menos overhead deploy/CI/monitoring
+- D1 + KV bindings compartidos con resto de admin
+- Notification cron puede vivir aquí o en `apps/api` — CC decide
 
-1. **Beds24 API timeouts** (probable): rate limit o slowness. Fix: timeout 120s ya está, agregar retry exponential.
-2. **JSON parse LLM**: `data.content[1].text` falla si LLM responde con un solo content block (sin tool use prefix). Fix: iterar content array buscando text type.
-3. **Datastore `pricing_proposals` lookup**: si Make falla persisting, los approve URLs no funcionan.
-4. **Email send failures**: Google Email connection puede tener rate limits.
+### Endpoints en `apps/admin/worker`
 
-Port a Worker resuelve 1, 3, 4 con D1 atomicity + Resend. (2) requiere fix en el code module.
+```
+GET  /pricing                  → admin UI tab
+POST /pricing/run              → trigger pipeline, await completion (30-60s timeout)
+POST /pricing/apply            → batch apply current pending proposals a Beds24
+GET  /pricing/prompt           → current system prompt
+PUT  /pricing/prompt           → update + insert history row
+GET  /pricing/history          → list past runs (last 30) (no rollback UI)
+```
 
-## Riesgos del port
+Cron triggers en `apps/admin/wrangler.toml`:
+```toml
+[triggers]
+crons = [
+  "0 11 * * *",  # 6 AM CDMX (UTC-5) = 11 UTC. Cron daily pipeline run.
+  "30 11 * * *", # 6:30 AM CDMX. WhatsApp notification si proposals > 0
+]
+```
 
-| Riesgo | Mitigación |
-|---|---|
-| `@react-email/render` falla en CF Workers | HTML inline fallback (igual que Better Auth) |
-| Prompt Sonnet 4.5 cambia behavior en Haiku 4.5 | Mantener Sonnet 4.5 para pricing (no es hot path, $0.50/run es trivial) |
-| D1 transaction fails atómica | Workers Workflows o try/catch con rollback explícito |
-| Anthropic API quota | Single execution/día, no problema |
-| Beds24 API rate limit | Espaciar fetchAll calls, ya hace 2 (no muchas) |
+### D1 tablas nuevas
 
-## Roadmap
+```sql
+-- Current state de pending proposals (NO token, NO expiry)
+CREATE TABLE pricing_proposals (
+  id TEXT PRIMARY KEY,           -- ULID
+  created_at INTEGER NOT NULL,
+  source TEXT NOT NULL,          -- 'cron-daily' | 'manual'
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | applied | superseded
+  summary TEXT,
+  deltas_json TEXT NOT NULL,     -- changes[] + beds24_payload
+  monthly_analysis_json TEXT,
+  reasoning_json TEXT,
+  warnings_json TEXT,
+  applied_at INTEGER,
+  applied_by_user_id TEXT,
+  apply_response TEXT
+);
 
-| Sprint | Trabajo |
-|---|---|
-| MVP1 (Sprint 1) | NO tocar pricing. Sigue en Make |
-| Sprint 2 (admin) | `apps/admin` tiene tab Pricing con view de pending proposals |
-| Sprint 3 | Port `cron:pricing-daily` + approve/reject a `apps/pricing` |
-| Sprint 4 | Cutover authoritative, paralelo deprecated |
-| Sprint 5 | Sunset Make pricing scenarios |
+CREATE INDEX idx_pricing_proposals_status ON pricing_proposals(status, created_at DESC);
 
-## Voto
+-- History de prompts (defensivo invisible)
+CREATE TABLE pricing_prompt_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  prompt_text TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  author_user_id TEXT,
+  note TEXT                       -- optional comment al editar
+);
 
-- [x] **Alexander** (A2/A5 thread/01): no PriceLabs, custom port
-- [ ] **Claude Code**: ¿voto sobre port intacto vs incremental refactor con tests?
-- [ ] **Web Claude**: voto port intacto manteniendo Sonnet 4.5, R2 para `pricing_proposals` archive, D1 para current state
-- [ ] **Future**: stage 2 considera agregar señales propietarias (bot intent demand, eventos manuales) al LLM input — pero NO antes del cutover Make→Worker estable
+-- Lookup hot path: current active prompt
+-- Use KV `KV_KNOWLEDGE` key `pricing:system_prompt` para hot reads
+```
+
+### Pipeline execution
+
+```typescript
+// apps/admin/src/pricing/pipeline.ts
+export async function runPricingPipeline(env, opts: { source: 'cron-daily' | 'manual' }) {
+  // 1. supersede any prior pending
+  await env.DB.prepare(
+    "UPDATE pricing_proposals SET status='superseded' WHERE status='pending'"
+  ).run();
+  
+  // 2. fetch Beds24 calendar + bookings
+  const [calendar, bookings] = await Promise.all([
+    beds24.getCalendar({ daysAhead: 360 }),
+    beds24.getBookings({ status: 'confirmed' }),
+  ]);
+  
+  // 3. pre-LLM cleanup (port from Make code module)
+  const payload = preLlmCleanup({ calendar, bookings });
+  
+  // 4. Anthropic Sonnet 4.5
+  const systemPrompt = await env.KV_KNOWLEDGE.get('pricing:system_prompt');
+  const llmResponse = await anthropic.messages.create({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 12000,
+    temperature: 0.3,
+    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: JSON.stringify(payload) }],
+  });
+  
+  // 5. hard validator post-LLM (port from Make code module)
+  const validated = hardValidator({ llmResponse, calendar });
+  
+  // 6. INSERT pricing_proposal row
+  const id = ulid();
+  await env.DB.prepare(`
+    INSERT INTO pricing_proposals (id, created_at, source, status, summary, deltas_json, monthly_analysis_json, reasoning_json, warnings_json)
+    VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)
+  `).bind(id, Date.now(), opts.source, validated.summary, JSON.stringify(validated.deltas), JSON.stringify(validated.monthlyAnalysis), JSON.stringify(validated.reasoning), JSON.stringify(validated.warnings)).run();
+  
+  return { id, validated };
+}
+
+export async function applyPendingProposals(env, userId: string) {
+  const pending = await env.DB.prepare(
+    "SELECT * FROM pricing_proposals WHERE status='pending' ORDER BY created_at DESC LIMIT 1"
+  ).first();
+  if (!pending) return { applied: 0, message: 'no pending' };
+  
+  const deltas = JSON.parse(pending.deltas_json);
+  const result = await beds24.applyCalendarChanges(deltas.beds24_payload);
+  
+  await env.DB.prepare(`
+    UPDATE pricing_proposals
+    SET status='applied', applied_at=?, applied_by_user_id=?, apply_response=?
+    WHERE id=?
+  `).bind(Date.now(), userId, JSON.stringify(result), pending.id).run();
+  
+  return { applied: deltas.changes.length, result };
+}
+```
+
+## Migración path (Sprint 3)
+
+### Pre-migration (Sprint 0-2)
+
+- Make scenarios `cron:pricing-daily`, `wh:pricing-approve`, `wh:pricing-reject` **keep activos**
+- Admin board Sprint 2 incluye view-only del pricing actual (lee D1 + Make logs) para auditar
+
+### Sprint 3 — port
+
+1. `apps/admin/src/pricing/` — UI tab + endpoints
+2. `packages/pricing-agent/` — system prompt + pre/post llm logic + types
+3. D1 migrations: `pricing_proposals` + `pricing_prompt_history`
+4. KV `KV_KNOWLEDGE` seed con `pricing:system_prompt` (copy del Make scenario)
+5. WhatsApp HSM template (or Stage 1 fallback email via Resend)
+6. Beds24 client `packages/beds24` ya existe — reusar
+7. Cron `0 11 * * *` + `30 11 * * *` en `apps/admin/wrangler.toml`
+
+### Sprint 3 cutover
+
+1. Deploy `apps/admin` con pricing tab + cron daily
+2. **Run paralelo 5-7 días** vs Make:
+   - Make cron sigue corriendo, manda email
+   - Admin tab muestra proposals nuevos
+   - Compare deltas — alertar si difieren > 10%
+3. Switch authoritative: aplicar SIEMPRE desde admin (no responder al email de Make)
+4. **Sprint 3 final** — eliminar Make scenarios:
+   - `wrangler` no se puede usar para Make. Delete via Make API o UI.
+   - Web Claude vía Make MCP: `Make:scenarios_delete` para 4718358, 4719127, 4719128
+   - Datastore `pricing_proposals` (85677) export backup → delete
+5. Done
+
+### Riesgos cutover
+
+- **WhatsApp HSM template approval delays**: si template `pricing_notification` no aprobado, fallback email Resend Sprint 3, swap a WhatsApp después
+- **D1 schema migration error**: testear migrations en staging D1 antes
+- **Sonnet 4.5 quota**: trivial, 1 run/día + manual ~5/día max = $5/mes
+- **Beds24 API rate limits**: batch apply tiene N pricing changes en 1 call con `beds24_payload` formato
+
+## Lo que NO entra en este port
+
+- **Multi-prompt experimentation** (Sprint 4+ feature, p.ej. A/B test 2 prompts)
+- **Pricing override layer** con señales del bot (intent demand) — Stage 2 future
+- **Rollback UI** del prompt history — SQL manual por ahora
+- **Approval workflow multi-user** (cuando llegue `staff` rol con permiso pricing read-only)
+
+## Confirmaciones Alex
+
+| Q | Voto | Razón |
+|---|---|---|
+| Q1 (cuándo correr) | B + cron background | On-demand desde admin + cron background diario para que notification tenga data |
+| Q2 (granularidad apply) | Apply all batch | Si no le late, ajusta prompt y re-corre — no inline edit |
+| Q3 (prompt editable) | B editable inline | Sin versioning UI, history defensivo invisible (C2) |
+| HTTP endpoints | Sí completos | `/run`, `/apply`, `/prompt` GET/PUT |
+| Make pricing | Eliminar al final Sprint 3 | Mantener fallback hasta cutover verificado |
+| Notification | WhatsApp por defecto | Email Stage 1 fallback hasta HSM template aprobado |
+| App | `apps/admin` no `apps/pricing` | Una app menos, pricing 100% admin-driven |
+
+## Acción items
+
+### Web Claude
+- [x] Reescribir decisions/03 v3 con simplificación
+- [x] Update thread/02 con decisiones C1+C2+C3
+
+### Claude Code (lunes)
+- [ ] Voto sobre `apps/admin` vs `apps/pricing` app separada
+- [ ] Voto sobre notification cron en `apps/admin` vs `apps/api`
+- [ ] Voto sobre orden de tabs en Sprint 2 (¿pricing antes o después de conversations?)
+- [ ] Sprint 3 sizing: ¿2 sem realista para port + WhatsApp HSM + cutover paralelo?
+
+### Alex
+- [ ] WhatsApp HSM template `pricing_notification` — solicitar approval con Meta cuando llegue Sprint 3
+- [ ] Stage 1 fallback: ¿OK email Resend si template no aprobado?
