@@ -64,7 +64,7 @@ Responde con data, no opinión:
 - **75% reducción tokens** — ¿es realista? Estima tokens promedio actual del Greeter v4 (10 last conversations en Make datastore 85639), y proyecta v5 con site-first routing
 - **Bot on-site** — analiza patrones tráfico WhatsApp. ¿Los users que entran al sitio probablemente prefieren WA o se quedarían en sitio si hay chatbox? Investiga si hay data
 - **`/disponibilidad/` SSR Astro vs fetch from edge** — qué es más performant para mobile 3G/4G?
-- **FAQ reduction bot 60→20** — analiza datastore 85639 para top-asked FAQs reales (no intuición WC). Devuelve lista ranked
+- **Top-20 FAQs ranking** — 🔴 ALEX DECISIÓN Q4: NO usar datastore Make 85639 para analizar FAQs. Hay un thread previo entre Alex y CC sobre análisis de **WhatsApp históricos** (export chats raw, no Make conversations). USAR ESE thread existente. CC tiene acceso a ese histórico ya procesado. Devuelve lista ranked top-20 basado en WhatsApp histórico de Alex, no Make datastore.
 
 ### 4. Propón mejoras (sección 5.3 thread/21)
 
