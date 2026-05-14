@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "_signature_canonical": "— Alexander 🌅\n· rincondelmar\n· club",
+  "_signature_note": "Footer approved Alex 2026-05-13 thread/44. Applied to long-form fields. NOT in title or description.",
+  "property": {
+    "slug": "rincon-del-mar",
+    "airbnb_listing_id": "18780853",
+    "beds24_room_id": "78695",
+    "display_name": "Villa Rincón del Mar"
+  },
+  "lang": "en",
+  "metadata": {
+    "drafted_by": "wc",
+    "drafted_at": "2026-05-14T02:48:11Z",
+    "approvals": {
+      "alex_ok": false,
+      "alex_ok_at": null,
+      "karina_ok": false,
+      "karina_ok_at": null
+    },
+    "deployed_to_airbnb": false,
+    "deployed_at": null,
+    "pending_decisions": [],
+    "changelog": [
+      {
+        "at": "2026-05-14T02:48:11Z",
+        "by": "wc",
+        "summary": "Initial draft RdM EN — direct translation from ES committed in b43b6b8."
+      }
+    ]
+  },
+  "airbnb_fields": {
+    "title": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "Beachfront villa · chef · pool · 30 guests",
+      "char_count": 42,
+      "wc_notes": "EN translation. Mirror structure of ES title."
+    },
+    "description": {
+      "max_chars": 500,
+      "format": "limited_markdown",
+      "content": "🏅 Airbnb Guest Favorite — one of the highest-rated beachfront villas on the Mexican Pacific Coast.\n\nTake the first step and stand speechless: the infinity pool, the ocean and the sky blend into a single horizon. Welcome to Villa Rincón del Mar.\n\n💬 More than 168 five-star reviews back our service. We're waiting for you!",
+      "char_count": 320,
+      "wc_notes": "EN translation of ES description."
+    },
+    "tu_propiedad": {
+      "max_chars": 2500,
+      "format": "limited_markdown",
+      "content": "Complete villa with direct beach access, designed by a renowned Mexican architect. Open, minimalist architecture, natural materials, permanent sea breeze. 6 bedrooms · 18 beds · 6.5 baths · up to 30 guests:\n\n🛏️ Master suite with private terrace and sea view — up to 5 people\n🛏️ 3 bedrooms for 5 people each\n🛏️ 1 bedroom for 7 people\n🛏️ 1 bedroom for 3 people\n\nAll bedrooms include: A/C, WiFi, closet, full bath, room and beach towels, bath amenities.\n\n✅ Services Included\nAll of this is part of your stay, no additional cost:\n👨‍🍳 Chef Celene, cook and houseman throughout your stay — full menu, specialties include charcoal-grilled red snapper, Peruvian-style swordfish ceviche, Mexican/American/Argentine cuts\n🏊 Infinity pool with palapa-bar facing the ocean\n🏖️ Beach lounge area with deck chairs and hammocks\n🧹 Daily room cleaning (weekly sheet change, towels every 3 days)\n🎵 Audio system and TV\n🛻 Support renting vans for up to 20 people, with or without driver\n🛥️ Coordination of yacht and boat rentals\n\n🛎️ Optional services with cost\nCustomize your stay. We coordinate at the time of your reservation:\n🛒 Grocery shopping and stocking before your arrival — transport and service charge: 5% on grocery cost, min $450 MXN\n🍹 Drink service at palapa-bar and beach\n🔥 Beach bonfire\n🥥 Fresh coconuts on the spot\n💆 In-house massages\n🐴 Horseback riding\n🚣 Coyuca Lagoon tour\n🤿 Diving, snorkeling, fishing and water skiing\n🎉 Private dinners and events on request\n\nWe send full price list when you confirm your reservation.",
+      "char_count": 1515,
+      "wc_notes": "Direct EN translation of RdM ES tu_propiedad."
+    },
+    "acceso_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Guests enjoy all areas and facilities of the villa. Room service operates three days per week. For long stays, weekly sheet change and towels every three days.",
+      "char_count": 159,
+      "wc_notes": "EN translation."
+    },
+    "interaccion_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Karina, our co-host, is available to support you before and during your stay. We coordinate planning of excursions and activities, and resolve any questions via Airbnb message.",
+      "char_count": 176,
+      "wc_notes": "EN translation. Channel kept as 'Airbnb message' per policy."
+    },
+    "otros_detalles": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Villa in a quiet area 35 min from Acapulco airport, away from the bay bustle. Direct beach access, infinity pool facing the ocean. We accept family groups, couples and private events with prior coordination. Pets welcome (notify when booking). 2-night minimum; weekends may require 3.",
+      "char_count": 284,
+      "wc_notes": "EN translation."
+    },
+    "como_llegar": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "⛱️⛱️⛱️ Welcome Kit — Villa Rincón del Mar ⛱️⛱️⛱️\n\n1️⃣ YOUR TRIP AND ARRIVAL\n\nWe recommend the Acapulco-Zihuatanejo bypass from the last 'La Venta' toll booth — Google Maps/Waze will direct you that way. You save the macro-tunnel and Acapulco traffic. Highway to the coast, then 15 km by road.\n\nLocation: https://maps.app.goo.gl/GEHJDhXvcTGcqxRv9\n\nTransport with driver:\nLocal Acapulco — Miguel Travel Vans: +52 1 744 144 8823\nFrom Mexico City:\n— Wagon: +52 55 3987 3347\n— Trosten: +52 55 3399 1000\n— CamioRenta: chat.whatsapp.com/IbHmckewjCN5IFPfq7ocUi\n— BambaRent: +52 55 8421 4411\n— RentaAutos: +52 55 5574 4080\n— CasanovaRent: +800 2272 668\n— Bustravel: +52 55 8854 4492\n— Conexión Travel: +52 55 1209 1153\n— JJ Chargers: +52 56 1724 8703\n\nIn case you need it:\n— Medical/dental clinic 10 min: https://maps.app.goo.gl/oDDepT2qjpkw9yG56\n— Farmacia del Eje 10 min: https://maps.app.goo.gl/epgtmxu62TqUUfPn6\n— Farmacias Similares: https://maps.app.goo.gl/rXJ7U2551yde39WS8\n— Tire repair and oil 1 km: https://maps.app.goo.gl/5wEbgQmBDH1BTfV96\n\n⛱️⛱️⛱️\n\n2️⃣ KITCHEN, CLEANING AND SHOPPING\n\nChef Celene, a cook and a houseman are INCLUDED in your rental. For grocery shopping we add a transport and service charge: 5% on cost, min $450 MXN. Everything is optional — you can also shop, cook and clean yourself and let the staff rest.\n\n— 2 weeks before your trip we connect you with Celene to define the menu. She gives you ideas and examples.\n— 5 days before you send the menu; she converts it to a shopping list and ensures everything is at the house upon your arrival.\n— Kitchen service starts 3 PM for lunch/dinner from 5 PM. Upon arrival you receive shopping receipts for cash payment.\n— Recent groups have spent ~$250-280 MXN/person/night on groceries (varies by season and menu).\n\n⛱️⛱️⛱️\n\n3️⃣ IF YOU PREFER TO SHOP YOURSELF\n\n— Bodega Aurrera 10 min: https://maps.app.goo.gl/NMSzPkP1ruXv81kt9\n— Sam's Club 35 min: https://maps.app.goo.gl/guak2jw1xqx3FBCV9\n— Fish and Seafood Market 20 min: https://goo.gl/maps/syYzCSHx1JnZPxdCA\n— Oysters and shells on the coastal road: https://goo.gl/maps/xmH5q1XEgSgxYYqo9\n— OXXO 100 m: https://maps.app.goo.gl/bH113b5SqEHh3fEf9\n— 'El Güero' store 400 m (steak, beef jerky, cheese): https://maps.app.goo.gl/ST3KQNsuUGeWezTZA\n— Tortilla shop 300 m: https://maps.app.goo.gl/PRg36oUbrykRyVX8A\n\n⛱️⛱️⛱️\n\n4️⃣ ACTIVITIES AND RECOMMENDATIONS\n\n— In-home massages · Michel: +52 744 221 7621 (her hands work miracles)\n— Diving, snorkel, fishing, tours · AcaScuba: acascuba.com · María José: +52 1 744 383 8162\n— Private yachts (consult hours, people, budget):\n  Carlos Vinalay: +52 744 502 7970 · Norma Rivera: +52 744 172 4413 · AcaScuba: +52 744 383 8162\n— Barra de Coyuca · where the lagoon meets the sea, palapa restaurants, tours: https://goo.gl/maps/EpM51zhavj9PRv3F6\n  Favorite Daribel: +52 741 115 7280 (picks you up by boat)\n— Sea turtle release: +52 744 488 9203 · https://maps.app.goo.gl/dFWdnRb8eHGMyYMm9\n— Water skiing + restaurant with view · Tres Marías: https://maps.app.goo.gl/oPAyfoXcrKsMSFAR8\n— Temazcal Macuilxochitl (Papagayo park, Sundays or private groups) · Memo: +52 744 113 3330\n\n⛱️⛱️⛱️\n\n5️⃣ RESTAURANTS AND DELIVERY\n\n— 'El Restaurancito' 500 m, until 6 PM · +52 720 142 7045 · https://maps.app.goo.gl/33tLC1dP6dXezAu37\n— 'Bonita, su cocina' 500 m, until 5 PM · +52 744 404 2205 · https://maps.app.goo.gl/ADPV2Lw8ckKzFxat6\n— Baby's · pizza, burgers, wings, until 10 PM · +52 744 438 2615\n— Tres Marías 5 km · water skiing, yacht tour, restaurant: https://maps.app.goo.gl/oPAyfoXcrKsMSFAR8\n\n⛱️⛱️⛱️\n\n6️⃣ EVENTS, DINNERS AND PARTIES\n\nPhotos of weddings, anniversaries, birthdays on the Airbnb listing: https://www.airbnb.com/rooms/18780853\n\n— Casual beach dinners with plastic furniture — no extra cost\n— Formal dinners on terrace/house with house furniture — no extra cost\n— Night staff for dinners: cook 3-10 PM $500, server/bartender 5 PM-12 AM $650 (notify 1 week ahead)\n— Beach ceremonies with decorated chuppah from $5,000 MXN · Sandra: +52 1 744 340 5686\n— Formal beach dinner with lights, mats, rented furniture, 8 hrs service: from $800/guest + groceries (notify 2 weeks)\n— Complete wedding/anniversary package with 3-course menu, 8 hrs service: from $1,400/guest (notify 1 month)\n\nRecommended external services:\n— DJ Pepe Vargas: +52 744 216 1023\n— Mariachi Tequila Acapulco: +52 744 408 4477 · +52 744 265 1422\n— Mariachi Acapulco: +52 744 415 7506\n— Cuban/salsa band · Male y su son: +52 744 148 5149\n— Saxophonist Alberto Jiménez: +52 744 243 1625\n— Pastelería el Sueño: +52 744 324 6822\n— Pasteles Liz: +52 744 136 8455\n— Pasteles Alex: +52 744 419 2310\n— Makeup/stylist · Danilo: +52 1 744 348 0043\n— Photographer · Brian: +52 1 744 143 9520\n— Belushama Spiritual Ceremonies: +52 735 358 6695\n— Mass services · Padre Benja: +52 747 108 6027\n— Mass services · Padre Chava Salmerón: +52 744 534 3818\n\nOther recommendations? We'll gladly provide them.\n\nWelcome!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 4957,
+      "wc_notes": "Full EN translation of como_llegar. All third-party contacts preserved."
+    },
+    "metodo_llegada": {
+      "max_chars": 200,
+      "format": "plain_text",
+      "content": "Key lockbox",
+      "char_count": 11,
+      "wc_notes": "EN translation."
+    },
+    "wifi_red": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Same as ES."
+    },
+    "wifi_password": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Same as ES."
+    },
+    "manual_casa": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "Welcome to Villa Rincón del Mar 🌅\n\n📶 WiFi\nNetwork: rincondelmar · Password: rincondelmar\n\n🔥 Water heater / hot water\nThe water heater is normally off — the water arrives warm due to the hot climate. If you prefer hot water: turn on the heater located behind the kitchen, in the service area.\n\n🔒 Safe boxes\nEach bedroom has a safe box. Karina, our manager, gives you the access code at check-in. We are not responsible for cash or valuables not kept in the safes.\n\n🏊 Pool\nInfinity pool, facing the ocean. Maintained daily. No diving depth — enjoy swimming.\n\n🍳 Kitchen\nFully equipped: 6-burner stove, oven, large refrigerator, microwave, blender, coffee maker. Chef Celene and team manage the area during your stay.\n\n🧹 Cleaning\nDaily room service. Weekly sheet change. Towels every 3 days.\n\n🚿 Towels\nBath and beach towels included — find extra towels in the closet of each bedroom.\n\n🛒 Last-minute shopping\nOXXO 100 meters from the villa. 'El Güero' store 400 meters with steak, jerky, cheese. Tortilla shop 300 meters.\n\n🚨 Emergencies\nKarina available during your stay for any need — find her on the property or via Airbnb message.\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 1165,
+      "wc_notes": "EN translation of ES manual_casa."
+    },
+    "instrucciones_salida": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Check-out 11 AM. Before leaving, please:\n\n— Turn off A/C, fans and lights\n— Leave the keys in the lockbox at the entrance\n— If you used the bedroom safes, leave them open and empty\n— Notify Karina that you've left\n\nIf you need late checkout, let us know in advance and we'll check availability.\n\nThank you for choosing us!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 359,
+      "wc_notes": "EN translation."
+    }
+  }
+}

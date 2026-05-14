@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "_signature_canonical": "— Alexander 🌅\n· rincondelmar\n· club",
+  "_signature_note": "Footer aprobado Alex 2026-05-13 thread/44. Aparece al final de long-form fields. NO en title ni description.",
+  "property": {
+    "slug": "combinada",
+    "airbnb_listing_id": "18009632",
+    "beds24_room_id": "74316",
+    "display_name": "Combinada — Rincón del Mar + Las Morenas"
+  },
+  "lang": "es",
+  "metadata": {
+    "drafted_by": "wc",
+    "drafted_at": "2026-05-14T02:44:55Z",
+    "approvals": {
+      "alex_ok": false,
+      "alex_ok_at": null,
+      "karina_ok": false,
+      "karina_ok_at": null
+    },
+    "deployed_to_airbnb": false,
+    "deployed_at": null,
+    "pending_decisions": [],
+    "changelog": [
+      {
+        "at": "2026-05-14T02:44:55Z",
+        "by": "wc",
+        "summary": "Initial draft Combinada ES — resolví inconsistencia chef incluido vs opcional (combinada chef INCLUIDO confirmed memoria proyecto). Manual+Salida nuevos."
+      }
+    ]
+  },
+  "airbnb_fields": {
+    "title": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "Dos villas pie de playa · chef · alberca · 58 pers",
+      "char_count": 50,
+      "wc_notes": "Actual: 'Dos villas, pie de playa, chef, 58 personas' (43). Agregué 'alberca'. Cap real 58."
+    },
+    "description": {
+      "max_chars": 500,
+      "format": "limited_markdown",
+      "content": "El espacio ideal para tu reunión familiar o de negocio.\n\n🏠 Villa Rincón del Mar — pie de playa, acceso directo al mar, 6 habitaciones hasta 28 huéspedes.\n\n🏠 Villa Rincón de las Morenas — playa a pocos pasos, 70 m de la otra casa, 6 habitaciones hasta 30 huéspedes.\n\n🍳 Chef, cocinera y mozo incluidos en la renta.\n\n⭐ Más de 180 reseñas de 5 estrellas.",
+      "char_count": 350,
+      "wc_notes": "Reescrito: emojis, fix ortografía, chef INCLUIDO declarado upfront."
+    },
+    "tu_propiedad": {
+      "max_chars": 2500,
+      "format": "limited_markdown",
+      "content": "Te elaboramos una propuesta detallada para tu reunión familiar o corporativa. Airbnb solo permite agregar 16 personas en el sistema — escríbenos con tus fechas, número de personas y detalles para enviarte propuesta completa hasta 58 huéspedes.\n\n🏠 LO QUE INCLUYE LA COMBINADA\n\nDos villas a 70 metros una de la otra, las dos a pie de playa:\n\n✅ Servicios incluidos (sin costo adicional):\n👨‍🍳 Chef Celene, cocineras y mozo durante toda tu estancia — preparación de alimentos, menú elaborado\n🥩 Parrilladas y mariscadas en nuestro asador a la vista\n🏊 Alberca infinita (RdM) + alberca privada 11×5 m + chapoteadero (Morenas)\n🏖️ Acceso directo a la playa en ambas villas\n🛏️ 12 habitaciones, 32+ camas, 13 baños\n🧹 Limpieza diaria (cambio sábanas semanal, toallas cada 3 días)\n🎵 Sistema de audio y TV\n🛻 Apoyo en renta de camionetas hasta 20 personas con/sin chofer\n🛥️ Coordinación de yates y lanchas\n\n🛎️ Servicios opcionales con costo:\n🛒 Compra y surtido de víveres — cargo por transporte y servicio 5%, mín $450 MXN\n🍹 Bebidas en palapa-bar y playa\n🔥 Fogata en la playa\n🥥 Cocos frescos\n💆 Masajes en sitio\n🐴 Paseo a caballo\n🚣 Tour en Laguna de Coyuca\n🎉 Cenas y eventos privados por encargo\n\nEspecialidades:\nHuachinango a la talla al carbón, ceviche peruano de pez vela, cortes mexicanos, americanos y argentinos en término perfecto.\n\nMás de 180 reseñas de 5 estrellas. Te ayudamos a planear: transporte, eventos en la playa, excursiones, buceo, pesca, paseos a la laguna, deportes acuáticos, masajes — prácticamente cualquier cosa.\n\nBienvenido a Villa Rincón del Mar y Villa Rincón de las Morenas. Que inicie la aventura.",
+      "char_count": 1610,
+      "wc_notes": "Resolví inconsistencia 'incluido vs opcional': chef INCLUIDO. Reorganicé bloques. Agregué cargo víveres."
+    },
+    "acceso_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Los huéspedes disfrutan todas las áreas e instalaciones de las dos villas. El servicio de habitación opera tres días por semana. Para estancias largas, cambio de sábanas semanal.",
+      "char_count": 178,
+      "wc_notes": "Status quo limpieza menor."
+    },
+    "interaccion_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Karina, nuestra co-anfitriona, está disponible en la propiedad para apoyarte antes y durante tu estancia. Coordinamos planeación de excursiones y actividades, y resolvemos cualquier duda por mensaje en Airbnb.",
+      "char_count": 209,
+      "wc_notes": "Removí 'teléfono o whats' (policy). Agregué Karina."
+    },
+    "otros_detalles": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Dos villas pie de playa a 70 metros una de la otra, ideales para grupos de 30-58 personas. Para grupos mayores escríbenos para propuesta personalizada. A 35 min del aeropuerto, alejado del bullicio. Mascotas bienvenidas. Estancia mínima 2 noches; fines de semana pueden requerir 3.",
+      "char_count": 281,
+      "wc_notes": "Field EMPTY actual — drafté nuevo."
+    },
+    "como_llegar": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "⛱️⛱️⛱️ Kit de bienvenida — Combinada (Rincón del Mar + Las Morenas) ⛱️⛱️⛱️\n\n1️⃣ TU VIAJE Y LLEGADA\n\nTe recomendamos el libramiento Acapulco-Zihuatanejo desde la última caseta 'La Venta' — Google Maps/Waze así lo indican. Te ahorras el macro-túnel y tráfico. Autopista hasta la costa, luego 15 km por carretera.\n\nUbicación Rincón del Mar: https://maps.app.goo.gl/GEHJDhXvcTGcqxRv9\n\nTransporte con chofer:\nLocal Acapulco — Miguel Travel Vans: +52 1 744 144 8823\nForáneos desde CDMX:\n— Wagon: +52 55 3987 3347\n— Trosten: +52 55 3399 1000\n— CamioRenta: chat.whatsapp.com/IbHmckewjCN5IFPfq7ocUi\n— BambaRent: +52 55 8421 4411\n— RentaAutos: +52 55 5574 4080\n— CasanovaRent: +800 2272 668\n— Bustravel: +52 55 8854 4492\n— Conexión Travel: +52 55 1209 1153\n— JJ Chargers: +52 56 1724 8703\n\nPor si lo necesitas:\n— Médico/dental 10 min: https://maps.app.goo.gl/oDDepT2qjpkw9yG56\n— Farmacia del Eje 10 min: https://maps.app.goo.gl/epgtmxu62TqUUfPn6\n— Farmacias Similares: https://maps.app.goo.gl/rXJ7U2551yde39WS8\n— Talachas y aceite 1 km: https://maps.app.goo.gl/5wEbgQmBDH1BTfV96\n\n⛱️⛱️⛱️\n\n2️⃣ COCINA, LIMPIEZA Y COMPRAS\n\nChef Celene, cocinera y mozo INCLUIDOS en tu renta combinada. Compras víveres: cargo por transporte y servicio 5%, mín $450 MXN. Todo opcional — también puedes comprar, cocinar y limpiar tú mismo.\n\n— 2 semanas antes te conectamos con la chef Celene para definir menú.\n— 5 días antes envías el menú; lista de compras lista, todo en casa a tu llegada.\n— Cocina inicia 3 PM, comida/cena desde 5 PM.\n— Promedio últimos grupos: $250-280/persona/noche en víveres.\n\n⛱️⛱️⛱️\n\n3️⃣ SI PREFIERES HACER TUS COMPRAS\n\n— Bodega Aurrera 10 min: https://maps.app.goo.gl/NMSzPkP1ruXv81kt9\n— Sam's Club 35 min: https://maps.app.goo.gl/guak2jw1xqx3FBCV9\n— Mercado Pescados/Mariscos 20 min: https://goo.gl/maps/syYzCSHx1JnZPxdCA\n— Mariscos 'Doña Lety' 1 km (domicilio): +52 744 146 0216\n— OXXO 100 m: https://maps.app.goo.gl/bH113b5SqEHh3fEf9\n— Tienda 'El Güero' 400 m: https://maps.app.goo.gl/ST3KQNsuUGeWezTZA\n— Tortillería 300 m: https://maps.app.goo.gl/PRg36oUbrykRyVX8A\n\n⛱️⛱️⛱️\n\n4️⃣ ACTIVIDADES Y RECOMENDACIONES\n\n— Masajes a domicilio · Michel: +52 744 221 7621\n— Buceo, snorkel, pesca, tours · AcaScuba: acascuba.com · María José: +52 1 744 383 8162\n— Yates: Carlos Vinalay: +52 744 502 7970 · Norma Rivera: +52 744 172 4413 · AcaScuba: +52 744 383 8162\n— Barra de Coyuca · restaurantes palapa, tours: https://goo.gl/maps/EpM51zhavj9PRv3F6\n  Favorito Daribel: +52 741 115 7280\n— Liberación tortugas marinas: +52 744 488 9203\n— Esquí acuático · Tres Marías: https://maps.app.goo.gl/oPAyfoXcrKsMSFAR8\n— Temazcal Macuilxochitl · Memo: +52 744 113 3330\n\n⛱️⛱️⛱️\n\n5️⃣ RESTAURANTES Y SERVICIO A DOMICILIO\n\n— 'El Restaurancito' 500 m · +52 720 142 7045 · https://maps.app.goo.gl/33tLC1dP6dXezAu37\n— 'Bonita, su cocina' 500 m · +52 744 404 2205\n— Baby's pizza/hamburguesas/alitas hasta 10 PM · +52 744 438 2615\n— Tres Marías 5 km: https://maps.app.goo.gl/oPAyfoXcrKsMSFAR8\n\n⛱️⛱️⛱️\n\n6️⃣ EVENTOS, CENAS Y FIESTAS\n\nFotos en Airbnb: https://www.airbnb.mx/rooms/18009632\n\n— Cenas casuales en playa con mobiliario plástico — sin costo extra\n— Cenas formales en terraza/casa con mobiliario de casa — sin costo extra\n— Personal noche: cocinera 3-10 PM $500, mesero/barman 5 PM-12 AM $650\n— Ceremonias en playa con juppah desde $5,000 · Sandra: +52 1 744 340 5686\n— Cena formal en playa con luces, petates, mobiliario, 8 hrs servicio: desde $800/comensal + víveres\n— Paquete bodas/XV/aniversarios con menú 3 tiempos y 8 hrs servicio: desde $1,400/comensal (avisar 1 mes)\n\nServicios externos recomendados:\n— DJ Pepe Vargas: +52 744 216 1023\n— Mariachi Tequila Acapulco: +52 744 408 4477 · +52 744 265 1422\n— Mariachi Acapulco: +52 744 415 7506\n— Banda cubana/salsa · Male y su son: +52 744 148 5149\n— Saxofonista Alberto Jiménez: +52 744 243 1625\n— Pastelería el Sueño: +52 744 324 6822\n— Pasteles Liz: +52 744 136 8455\n— Pasteles Alex: +52 744 419 2310\n— Maquillaje/estilista · Danilo: +52 1 744 348 0043\n— Fotógrafo · Brian: +52 1 744 143 9520\n— Belushama Ceremonias Espirituales: +52 735 358 6695\n— Misas · Padre Benja: +52 747 108 6027\n— Misas · Padre Chava Salmerón: +52 744 534 3818\n\n¿Otra recomendación? Con gusto te la proporcionamos.\n\n¡Bienvenido!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 4269,
+      "wc_notes": "Adaptado de RdM: link Airbnb a Combinada, sección 2 cocina INCLUIDA (sin precios opcionales), Mariscos Doña Lety per listing Combinada."
+    },
+    "metodo_llegada": {
+      "max_chars": 200,
+      "format": "plain_text",
+      "content": "Personal del edificio",
+      "char_count": 21,
+      "wc_notes": "Status quo (DIFFERENT vs otros, tiene sentido con más personal)."
+    },
+    "wifi_red": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Status quo."
+    },
+    "wifi_password": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Status quo."
+    },
+    "manual_casa": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "Bienvenido a las dos villas Rincón del Mar + Las Morenas 🌅\n\n📶 WiFi\nRdM: red 'rincondelmar' · contraseña 'rincondelmar'\nMorenas: red 'Rincondelmar1' · contraseña 'Rincondelmar1'\n\n🔥 Boiler / agua caliente\nLos boilers normalmente están apagados — el agua llega tibia por el clima cálido. Si prefieres agua caliente: prende el boiler detrás de la cocina (cada villa).\n\n🔒 Cajas de seguridad\nCada habitación cuenta con caja de seguridad. Karina te da el código al check-in. No nos hacemos responsables por valores que no se guarden en las cajas.\n\n🏊 Albercas\nRdM: infinita frente al océano · Morenas: privada 11×5 m + chapoteadero 4×3 m. Mantenidas diariamente.\n\n🍳 Cocina\nEquipadas completas en ambas villas. Chef Celene y equipo manejan las áreas durante tu estancia.\n\n🧹 Limpieza\nServicio diario. Cambio sábanas semanal. Toallas cada 3 días.\n\n🚿 Toallas\nBaño y playa incluidas en ambas villas.\n\n🛒 Compras de última hora\nOXXO 100 m de RdM. Tienda 'El Güero' 400 m. Tortillería 300 m.\n\n🚨 Emergencias\nKarina disponible durante tu estancia — en alguna de las propiedades o vía mensaje en Airbnb.\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 1121,
+      "wc_notes": "Field EMPTY actual — drafté nuevo. Dos villas con WiFi distintas declaradas."
+    },
+    "instrucciones_salida": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Salida 11 AM. Antes de salir, te pedimos:\n\n— Apaga A/C, ventiladores y luces en ambas villas\n— Deja las llaves en las cajas de seguridad de las entradas\n— Si usaste las cajas de seguridad de habitaciones, déjalas abiertas y vacías\n— Avisa a Karina que ya saliste\n\nSi necesitas salida tardía, avísanos con anticipación.\n\n¡Gracias por elegirnos!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 380,
+      "wc_notes": "Field EMPTY actual — drafté nuevo."
+    }
+  }
+}

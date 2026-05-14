@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "_signature_canonical": "— Alexander 🌅\n· rincondelmar\n· club",
+  "_signature_note": "Footer aprobado Alex 2026-05-13 thread/44. Aparece al final de long-form fields. NO en title ni description.",
+  "property": {
+    "slug": "huerta-cocotera",
+    "airbnb_listing_id": "1577678927412395161",
+    "beds24_room_id": "637063",
+    "display_name": "Casa en Huerta Cocotera"
+  },
+  "lang": "es",
+  "metadata": {
+    "drafted_by": "wc",
+    "drafted_at": "2026-05-14T02:44:55Z",
+    "approvals": {
+      "alex_ok": false,
+      "alex_ok_at": null,
+      "karina_ok": false,
+      "karina_ok_at": null
+    },
+    "deployed_to_airbnb": false,
+    "deployed_at": null,
+    "pending_decisions": [],
+    "changelog": [
+      {
+        "at": "2026-05-14T02:44:55Z",
+        "by": "wc",
+        "summary": "Initial draft Huerta ES — único listing con Manual y Otros detalles existentes (los usé como base). Estructura como_llegar más corta vs otros (huerta es independiente). 2 habitaciones (no 4) per listing actual."
+      }
+    ]
+  },
+  "airbnb_fields": {
+    "title": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "Casa en huerta cocotera · pie de playa · palapa",
+      "char_count": 47,
+      "wc_notes": "Actual: 'Casa en huerta cocotera ¡a pie de playa!' (40). Cambié para incluir 'palapa' (diferenciador único)."
+    },
+    "description": {
+      "max_chars": 500,
+      "format": "limited_markdown",
+      "content": "🌴 Vive una experiencia única en nuestra huerta cocotera de 10,000 m² — una hectárea completa, pie de playa, con tu propia palapa privada en la arena.\n\nAmanece rodeado de palmeras de coco, el mar justo enfrente de tu cabaña de lujo, y convive con nuestros animalitos.\n\nLa propiedad está situada sobre la Barra de Coyuca, una franja arenosa entre el mar y la laguna — paraíso natural con enramadas y lugar para bañarse.\n\nConecta con la naturaleza en esta escapada inolvidable.",
+      "char_count": 474,
+      "wc_notes": "Cambios: emojis añadidos, mantengo voice original. Fix ortografía 'rodado' → 'rodeado', 'esta' → 'está'. Sin reseñas count (status quo)."
+    },
+    "tu_propiedad": {
+      "max_chars": 2500,
+      "format": "limited_markdown",
+      "content": "Nuestra cabaña está construida con materiales regionales, finos muebles de madera de parota, una palapa exterior gigante y acabados en tonos claros. La propiedad es una antigua huerta cocotera de 10,000 m² (1 hectárea) que hemos convertido en un paraíso natural con plantas exóticas y animales. Tendrás tu palapa privada en la playa con dos hamacas, con el mar a tus pies — vista a los 20 km de playa que nos rodea.\n\nSi quieres, puedes pasearte con nuestros tres borregos y tres chivos, darles de comer, o caminar a la playa con 'la prieta', la perrita que adoptamos de la calle.\n\n🌴 Espacios principales:\n— Palapa exterior gigante envuelta en naturaleza\n— Cocina exterior completamente equipada\n— Comedor para 12 personas\n— Sala amplia con hamaca king size\n— Asador tipo argentino\n— Alberca de borde infinito 3×2 m, 1.7 m de profundidad\n\n🛏️ Habitaciones (hasta 12 huéspedes):\n— Habitación 1: 2 camas matrimoniales + sofá-cama matrimonial + 1 individual · A/C, TV, clóset, oficina equipada\n— Habitación 2: cama king + sofá + colchón matrimonial opcional · A/C, cine en casa, clóset amplio, escritorio\n— Baño completamente equipado, agua caliente, compartido entre las dos habitaciones\n\n🌿 Servicios cerca:\n— Tienda 'La Azucena' bien surtida a 100 metros\n— Lavandería al lado\n— Restaurantes tipo fonda en la cercanía\n— OXXO a 500 metros, cajero automático a 1 km, supermercado a 10 minutos\n\n📍 Pie de la Cuesta (Barrio Mágico) a 10 minutos con restaurantes y bares locales. La costera de Acapulco a 30 minutos.\n\n👨‍🌾 Nuestro cuidador vive en un cuarto separado dentro de la huerta — atiende la alberca, jardinería y animales, y te apoya en lo que puede. Una persona se encarga de lavandería 8 AM-6 PM y puede ayudarte con el aseo diario.",
+      "char_count": 1732,
+      "wc_notes": "Mantengo voice 'tú' (más cercano, propio de huerta), pulí ortografía, organicé en bloques con emojis. Confirmé 2 habitaciones (NO 4) per listing actual. Sin cargo víveres (huerta no tiene servicio cocina típico)."
+    },
+    "acceso_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Puedes usar toda la huerta, desde la avenida hasta el mar — 200 m de larga y 50 m de ancha.",
+      "char_count": 91,
+      "wc_notes": "Status quo limpieza menor."
+    },
+    "interaccion_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Vivimos a media hora de la propiedad, pero siempre estamos cerca para apoyarte con recomendaciones y resolver cualquier duda. ¿Quieres rentar un yate o lancha? ¿Salir a descubrir la zona? ¿Necesitas ayuda en algo más? Ahí estaremos para ayudarte por mensaje en Airbnb.",
+      "char_count": 268,
+      "wc_notes": "Pulí ortografía, removí teléfono/whats (policy)."
+    },
+    "otros_detalles": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "La huerta está situada sobre la Barra de Coyuca, una franja arenosa entre el mar y la laguna de Coyuca. La zona es un paraíso natural — flora y fauna de los manglares, enramadas con platillos de mariscos y mucho lugar para bañarse. Hay tours en lancha para descubrir la laguna y la misteriosa 'Isla de las Siete Mujeres', donde te espera hasta un cocodrilo. Si te gustan los deportes acuáticos, puedes practicar esquí acuático o un partido de vóley o futbol en la playa.",
+      "char_count": 470,
+      "wc_notes": "Pulí ortografía vs original ('flora y fauna de SUS manglares' → 'de los manglares')."
+    },
+    "como_llegar": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "⛱️⛱️⛱️ Kit de bienvenida — Casa en Huerta Cocotera ⛱️⛱️⛱️\n\n1️⃣ TU VIAJE Y LLEGADA\n\nTe recomendamos el libramiento Acapulco-Zihuatanejo desde la última caseta 'La Venta' — Google Maps/Waze así lo indican. Te ahorras el macro-túnel y tráfico. Autopista hasta la costa, luego 15 km por carretera.\n\nUbicación de la casa: https://maps.app.goo.gl/3sY9HMb8HQ6rR2Sy9\n\nSi llegas antes de las 6 PM te recibimos en persona. Si llegas más tarde, encontrarás la llave en una cajita de seguridad en la puerta — el código es 6720.\n\nTransporte con chofer:\nLocal Acapulco — Miguel Travel Vans: +52 1 744 144 8823\nForáneos desde CDMX:\n— Wagon: +52 55 3987 3347\n— Trosten: +52 55 3399 1000\n— CamioRenta: chat.whatsapp.com/IbHmckewjCN5IFPfq7ocUi\n— BambaRent: +52 55 8421 4411\n— RentaAutos: +52 55 5574 4080\n— CasanovaRent: +800 2272 668\n— Bustravel: +52 55 8854 4492\n— Conexión Travel: +52 55 1209 1153\n— JJ Chargers: +52 56 1724 8703\n\nPor si lo necesitas:\n— Médico/dental 10 min: https://maps.app.goo.gl/oDDepT2qjpkw9yG56\n— Farmacia del Eje 10 min: https://maps.app.goo.gl/epgtmxu62TqUUfPn6\n— Farmacias Similares: https://maps.app.goo.gl/rXJ7U2551yde39WS8\n— Talachas y aceite 1 km: https://maps.app.goo.gl/5wEbgQmBDH1BTfV96\n\n⛱️⛱️⛱️\n\n2️⃣ SUPERMERCADOS Y COMPRAS\n\n— Bodega Aurrera 10 min: https://maps.app.goo.gl/NMSzPkP1ruXv81kt9\n— Sam's Club 35 min: https://maps.app.goo.gl/guak2jw1xqx3FBCV9\n— Pescadería 'La More' 1 km (camarones, pescado fresco, domicilio): +52 744 551 5239\n— OXXO 500 m antes de la casa\n— Tienda 'La Azucena' 100 m antes de la casa (bien surtida)\n— Tortillería a 50 m de la Azucena\n\n⛱️⛱️⛱️\n\n3️⃣ ACTIVIDADES Y RECOMENDACIONES\n\n— Masajes · Michel: +52 744 221 7621 (puede ir a la huerta o tiene palapa cerca)\n— Buceo, snorkel, pesca, tours · AcaScuba: acascuba.com · María José: +52 1 744 383 8162\n— Yates privados:\n  Carlos Vinalay: +52 744 502 7970 · Norma Rivera: +52 744 172 4413 · AcaScuba: +52 744 383 8162\n— Barra de Coyuca · laguna + mar, restaurantes palapa, tours: https://goo.gl/maps/EpM51zhavj9PRv3F6\n  Favorito Daribel: +52 741 115 7280 (te recoge en lancha)\n— Liberación tortugas marinas: +52 744 488 9203\n— Esquí acuático · Tres Marías: https://maps.app.goo.gl/oPAyfoXcrKsMSFAR8\n— Temazcal Macuilxochitl · Memo: +52 744 113 3330\n\n⛱️⛱️⛱️\n\n4️⃣ RESTAURANTES Y SERVICIO A DOMICILIO\n\n— 'El Restaurancito' 500 m, domicilio · +52 720 142 7045 · https://maps.app.goo.gl/33tLC1dP6dXezAu37\n— Mariscos 'Doña Lety' 1 km, domicilio · +52 744 146 0216\n— 'Bonita, su cocina' 500 m · https://maps.app.goo.gl/ADPV2Lw8ckKzFxat6\n— Baby's pizza/hamburguesas/alitas · +52 744 438 2615\n— Puestos a la derecha de la huerta: pollo y antojitos\n\n⛱️⛱️⛱️\n\n¡Bienvenido a tu refugio en la huerta!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 2717,
+      "wc_notes": "Expandí vs actual (~3,000→ más completo). Incluí lista completa transportes CDMX + servicios emergencia (estaban genéricos). Mantengo clave caja 6720 explícita. Tienda 'La Azucena' + Pescadería 'La More' per listing Huerta. NO incluye sección 6 eventos (huerta no es venue de eventos)."
+    },
+    "metodo_llegada": {
+      "max_chars": 200,
+      "format": "plain_text",
+      "content": "Caja de seguridad para llaves",
+      "char_count": 29,
+      "wc_notes": "Status quo."
+    },
+    "wifi_red": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Status quo."
+    },
+    "wifi_password": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Status quo."
+    },
+    "manual_casa": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "Bienvenido a la Casa en Huerta Cocotera 🌴\n\n📶 WiFi\nRed: rincondelmar · Contraseña: rincondelmar\n\n🔒 Caja de seguridad llaves\nSi llegas después de las 6 PM, la llave está en una cajita de seguridad en la puerta. Código: 6720.\n\n📺 Proyector recámara principal\nPréndelo manualmente apretando el foco rojo en la parte de abajo. Conecta con el botón 'source':\n— Google Chromecast (celular)\n— Roku Stick (control negro)\n\n🔥 Boiler / agua caliente\nEl boiler estará apagado a tu llegada — el agua del tinaco normalmente está más que tibia. Si quieres prender el boiler, está en el pasillo atrás de la cocina. Abre la llave de paso azul de PVC y apreta el botón abajo del boiler. Si se acaban las pilas (tamaño 'D'), las venden en la tienda de en frente.\n\n⛽ Tanques de gas\nHay tres tanques: estufa, boiler, reserva. Si se acaba uno, te pedimos cambiarlo.\n\n🏖️ Playa y palapa privada\nPara llegar a la playa: ve por la calle dentro de la huerta, entra al corral y encontrarás un letrero que te lleva al camino hacia la playa. Acceso por la derecha de la propiedad, encontrarás tu palapa privada. Las dos hamacas se pueden colgar durante el día — te pedimos regresarlas a la casa antes de la noche.\n\n🐐 Los animalitos\nTodos son muy mansos, no muerden, puedes acariciarlos.\n— A los chivos les encantan las tortillas (sobre todo a los dos blancos y al borrego macho). También dejamos comida seca en un tambo blanco en la terraza. A los niños les encanta darles de comer desde afuera de la cerca o adentro.\n— 'La prieta', la perrita que adoptamos de la calle, te acompaña a la playa, le gusta meterse al mar. A veces anda en la calle, a veces en la casa si la dejan entrar. Dejamos croquetas en otro tambo blanco. Si no se llevan con tus mascotas, la pueden dejar afuera — no pasa nada.\n\n🍳 Cocina\nCocina exterior completamente equipada bajo la palapa: estufa, comedor para 12, asador argentino.\n\n🛒 Compras de última hora\nOXXO 500 m. Tienda 'La Azucena' 100 m antes de la casa (bien surtida). Tortillería a 50 m de La Azucena.\n\n🚨 Emergencias\nEl cuidador vive en un cuarto dentro de la huerta — atiende alberca, jardinería, animales y te apoya en lo que puede. Una persona lavandería 8 AM-6 PM puede ayudarte con aseo diario. Cualquier emergencia mayor, contáctanos por mensaje en Airbnb.\n\n¿Alguna otra recomendación? Déjanos saber.\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 2346,
+      "wc_notes": "Status quo expandido — el actual Manual de Huerta era el mejor de todas las propiedades, lo usé como base. Pulí formato, agregué WiFi al inicio, organicé en secciones con emojis. Mantuve TODA la narrativa sobre 'la prieta' y los chivos (es ÚNICO y encantador, marca diferencial)."
+    },
+    "instrucciones_salida": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Salida 11 AM. Antes de salir, te pedimos:\n\n— Junta las toallas usadas\n— Apaga las luces y los aparatos (A/C, ventiladores)\n— Regresa las hamacas de la palapa de playa a la casa\n— Deja la llave en la cajita de seguridad de la entrada\n— Avisa al cuidador o por mensaje en Airbnb que ya saliste\n\nSi necesitas salida tardía, avísanos con anticipación.\n\n¡Gracias por elegirnos!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 409,
+      "wc_notes": "Expandí vs actual (que solo decía 'Junta las toallas usadas / Apaga las luces los aparatos'). Estructura idéntica a RdM/Morenas/Combinada salida."
+    }
+  }
+}

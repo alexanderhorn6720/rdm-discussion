@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "_signature_canonical": "— Alexander 🌅\n· rincondelmar\n· club",
+  "_signature_note": "Footer approved Alex 2026-05-13 thread/44. Applied to long-form fields. NOT in title or description.",
+  "property": {
+    "slug": "huerta-cocotera",
+    "airbnb_listing_id": "1577678927412395161",
+    "beds24_room_id": "637063",
+    "display_name": "Coconut Grove House"
+  },
+  "lang": "en",
+  "metadata": {
+    "drafted_by": "wc",
+    "drafted_at": "2026-05-14T02:48:11Z",
+    "approvals": {
+      "alex_ok": false,
+      "alex_ok_at": null,
+      "karina_ok": false,
+      "karina_ok_at": null
+    },
+    "deployed_to_airbnb": false,
+    "deployed_at": null,
+    "pending_decisions": [
+      {
+        "field": "all",
+        "question": "Huerta AirBnB listing currently has NO EN version (only ES). Confirm: do we create EN listing variant in AirBnB?",
+        "added_by": "wc",
+        "added_at": "2026-05-14T02:48:11Z"
+      }
+    ],
+    "changelog": [
+      {
+        "at": "2026-05-14T02:48:11Z",
+        "by": "wc",
+        "summary": "Initial draft Huerta EN — NEW (AirBnB Huerta had no EN version)."
+      }
+    ]
+  },
+  "airbnb_fields": {
+    "title": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "Coconut grove cabin · beachfront · private palapa",
+      "char_count": 49,
+      "wc_notes": "NEW EN title."
+    },
+    "description": {
+      "max_chars": 500,
+      "format": "limited_markdown",
+      "content": "🌴 Live a unique experience in our coconut grove of 10,000 m² — a full hectare, beachfront, with your own private palapa on the sand.\n\nWake up surrounded by coconut palms, the sea right in front of your luxury cabin, and meet our animals.\n\nThe property sits on the Barra de Coyuca, a sandy strip between sea and lagoon — a natural paradise with palm-thatched eateries and plenty of swimming spots.\n\nConnect with nature on this unforgettable escape.",
+      "char_count": 447,
+      "wc_notes": "EN translation."
+    },
+    "tu_propiedad": {
+      "max_chars": 2500,
+      "format": "limited_markdown",
+      "content": "Our cabin is built with regional materials, fine parota wood furniture, a giant outdoor palapa and light-toned finishes. The property is an old coconut grove of 10,000 m² (1 hectare) that we've turned into a natural paradise with exotic plants and animals. You'll have your private palapa on the beach with two hammocks, with the sea at your feet — view of the 20 km of beach that surrounds us.\n\nIf you want, you can walk with our three sheep and three goats, feed them, or walk to the beach with 'la prieta', the little dog we adopted from the street.\n\n🌴 Main spaces:\n— Giant outdoor palapa wrapped in nature\n— Fully equipped outdoor kitchen\n— Dining for 12 people\n— Spacious living room with king-size hammock\n— Argentine-style grill\n— Infinity-edge pool 3×2 m, 1.7 m deep\n\n🛏️ Bedrooms (up to 12 guests):\n— Room 1: 2 doubles + double sofa-bed + 1 single · A/C, TV, closet, equipped office\n— Room 2: king + sofa + optional double mattress · A/C, home theater, large closet, desk\n— Fully equipped bathroom, hot water, shared between the two rooms\n\n🌿 Nearby services:\n— Well-stocked 'La Azucena' store at 100 meters\n— Laundry next door\n— Local restaurants nearby\n— OXXO at 500 meters, ATM at 1 km, supermarket at 10 minutes\n\n📍 Pie de la Cuesta (Barrio Mágico) 10 minutes away with restaurants and local bars. Acapulco coastline 30 minutes.\n\n👨‍🌾 Our caretaker lives in a separate room within the grove — attends to the pool, gardening and animals, and supports you with what he can. One person handles laundry 8 AM-6 PM and can help with daily cleaning.",
+      "char_count": 1551,
+      "wc_notes": "EN translation. 2 bedrooms confirmed."
+    },
+    "acceso_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "You can use the entire grove, from the avenue to the sea — 200 m long and 50 m wide.",
+      "char_count": 84,
+      "wc_notes": "EN translation."
+    },
+    "interaccion_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "We live half an hour from the property, but we're always close to support you with recommendations and resolve any questions. Want to rent a yacht or boat? Go out and discover the area? Need help with something else? We'll be there for you via Airbnb message.",
+      "char_count": 259,
+      "wc_notes": "EN translation."
+    },
+    "otros_detalles": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "The grove is located on the Barra de Coyuca, a sandy strip between the sea and the Coyuca lagoon. The area is a natural paradise — mangrove flora and fauna, palm-thatched eateries with seafood dishes and plenty of swimming spots. There are boat tours to discover the lagoon and the mysterious 'Isla de las Siete Mujeres', where a crocodile awaits you. If you like water sports, you can practice water skiing or a beach volleyball or soccer game.",
+      "char_count": 445,
+      "wc_notes": "EN translation."
+    },
+    "como_llegar": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "⛱️⛱️⛱️ Welcome Kit — Coconut Grove House ⛱️⛱️⛱️\n\n1️⃣ YOUR TRIP AND ARRIVAL\n\nWe recommend the Acapulco-Zihuatanejo bypass from the last 'La Venta' toll booth — Google Maps/Waze will direct you that way. Highway to the coast, then 15 km by road.\n\nHouse location: https://maps.app.goo.gl/3sY9HMb8HQ6rR2Sy9\n\nIf you arrive before 6 PM we welcome you in person. If you arrive later, you'll find the key in a lockbox at the door — the code is 6720.\n\nTransport with driver:\nLocal Acapulco — Miguel Travel Vans: +52 1 744 144 8823\nFrom Mexico City:\n— Wagon: +52 55 3987 3347\n— Trosten: +52 55 3399 1000\n— CamioRenta: chat.whatsapp.com/IbHmckewjCN5IFPfq7ocUi\n— BambaRent: +52 55 8421 4411\n— RentaAutos: +52 55 5574 4080\n— CasanovaRent: +800 2272 668\n— Bustravel: +52 55 8854 4492\n— Conexión Travel: +52 55 1209 1153\n— JJ Chargers: +52 56 1724 8703\n\nIn case you need it:\n— Medical/dental 10 min: https://maps.app.goo.gl/oDDepT2qjpkw9yG56\n— Farmacia del Eje 10 min: https://maps.app.goo.gl/epgtmxu62TqUUfPn6\n— Farmacias Similares: https://maps.app.goo.gl/rXJ7U2551yde39WS8\n— Tire repair and oil 1 km: https://maps.app.goo.gl/5wEbgQmBDH1BTfV96\n\n⛱️⛱️⛱️\n\n2️⃣ SUPERMARKETS AND SHOPPING\n\n— Bodega Aurrera 10 min: https://maps.app.goo.gl/NMSzPkP1ruXv81kt9\n— Sam's Club 35 min: https://maps.app.goo.gl/guak2jw1xqx3FBCV9\n— 'La More' Fish Shop 1 km (shrimp, fresh fish, delivery): +52 744 551 5239\n— OXXO 500 m before the house\n— 'La Azucena' store 100 m before the house (well-stocked)\n— Tortilla shop 50 m from La Azucena\n\n⛱️⛱️⛱️\n\n3️⃣ ACTIVITIES AND RECOMMENDATIONS\n\n— Massages · Michel: +52 744 221 7621 (can come to the grove or has a palapa nearby)\n— Diving, snorkel, fishing, tours · AcaScuba: acascuba.com · María José: +52 1 744 383 8162\n— Private yachts:\n  Carlos Vinalay: +52 744 502 7970 · Norma Rivera: +52 744 172 4413 · AcaScuba: +52 744 383 8162\n— Barra de Coyuca · lagoon + sea, palapa restaurants, tours: https://goo.gl/maps/EpM51zhavj9PRv3F6\n  Favorite Daribel: +52 741 115 7280 (picks you up by boat)\n— Sea turtle release: +52 744 488 9203\n— Water skiing · Tres Marías: https://maps.app.goo.gl/oPAyfoXcrKsMSFAR8\n— Temazcal Macuilxochitl · Memo: +52 744 113 3330\n\n⛱️⛱️⛱️\n\n4️⃣ RESTAURANTS AND DELIVERY\n\n— 'El Restaurancito' 500 m, delivery · +52 720 142 7045 · https://maps.app.goo.gl/33tLC1dP6dXezAu37\n— 'Doña Lety' Seafood 1 km, delivery · +52 744 146 0216\n— 'Bonita, su cocina' 500 m · https://maps.app.goo.gl/ADPV2Lw8ckKzFxat6\n— Baby's pizza/burgers/wings · +52 744 438 2615\n— Stalls to the right of the grove: chicken and street food\n\n⛱️⛱️⛱️\n\nWelcome to your refuge in the grove!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 2617,
+      "wc_notes": "EN translation. Lockbox code 6720 preserved."
+    },
+    "metodo_llegada": {
+      "max_chars": 200,
+      "format": "plain_text",
+      "content": "Key lockbox",
+      "char_count": 11,
+      "wc_notes": "EN translation."
+    },
+    "wifi_red": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Status quo."
+    },
+    "wifi_password": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Status quo."
+    },
+    "manual_casa": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "Welcome to the Coconut Grove House 🌴\n\n📶 WiFi\nNetwork: rincondelmar · Password: rincondelmar\n\n🔒 Key lockbox\nIf you arrive after 6 PM, the key is in a lockbox at the door. Code: 6720.\n\n📺 Master bedroom projector\nTurn it on manually by pressing the red bulb at the bottom. Connect with the 'source' button:\n— Google Chromecast (phone)\n— Roku Stick (black remote)\n\n🔥 Water heater / hot water\nThe heater will be off on arrival — the water tank is usually more than warm. If you want to turn on the heater, it's in the hallway behind the kitchen. Open the blue PVC stop valve and press the button below the heater. If batteries run out (size 'D'), they're sold at the store across the street.\n\n⛽ Gas tanks\nThere are three tanks: stove, heater, reserve. If one runs out, please switch it.\n\n🏖️ Beach and private palapa\nTo get to the beach: go down the road inside the grove, enter the corral and you'll find a sign that takes you to the path to the beach. Access on the right of the property, you'll find your private palapa. The two hammocks can be hung during the day — please return them to the house before night.\n\n🐐 The animals\nAll very gentle, they don't bite, you can pet them.\n— The goats love tortillas (especially the two white ones and the male sheep). We also leave dry food in a white drum on the terrace. Kids love feeding them from outside the fence or inside.\n— 'La prieta', the little dog we adopted from the street, will go with you to the beach, she likes the sea. Sometimes on the street, sometimes in the house if you let her in. We leave kibble in another white drum. If she doesn't get along with your pets, you can leave her outside — no problem.\n\n🍳 Kitchen\nFully equipped outdoor kitchen under the palapa: stove, dining for 12, Argentine grill.\n\n🛒 Last-minute shopping\nOXXO 500 m. 'La Azucena' store 100 m before the house (well-stocked). Tortilla shop 50 m from La Azucena.\n\n🚨 Emergencies\nThe caretaker lives in a room within the grove — attends pool, gardening, animals and supports you with what he can. One person laundry 8 AM-6 PM can help with daily cleaning. For any major emergency, contact us via Airbnb message.\n\nAny other recommendation? Let us know.\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 2215,
+      "wc_notes": "EN translation. All animals narrative preserved (UNIQUE)."
+    },
+    "instrucciones_salida": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Check-out 11 AM. Before leaving, please:\n\n— Gather used towels\n— Turn off lights and appliances (A/C, fans)\n— Return the beach palapa hammocks to the house\n— Leave the key in the lockbox at the entrance\n— Notify the caretaker or via Airbnb message that you've left\n\nIf you need late checkout, let us know in advance.\n\nThank you for choosing us!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 381,
+      "wc_notes": "EN translation."
+    }
+  }
+}
