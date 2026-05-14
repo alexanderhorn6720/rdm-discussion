@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "property": {
+    "slug": "rincon-del-mar",
+    "airbnb_listing_id": "18780853",
+    "beds24_room_id": "78695",
+    "display_name": "Villa Rincón del Mar"
+  },
+  "lang": "es",
+  "metadata": {
+    "drafted_by": "wc",
+    "drafted_at": "2026-05-13T22:00:00Z",
+    "approvals": {
+      "alex_ok": false,
+      "alex_ok_at": null,
+      "karina_ok": false,
+      "karina_ok_at": null
+    },
+    "deployed_to_airbnb": false,
+    "deployed_at": null,
+    "pending_decisions": [
+      {
+        "field": "tu_propiedad",
+        "question": "Mantengo lista actual 'Servicios Adicionales (costo aparte)' con masajes, paseo a caballo, etc. con teléfonos individuales — o consolido bajo Karina single contact por LFPDPPP/AirBnB policy?",
+        "added_by": "wc",
+        "added_at": "2026-05-13T22:00:00Z"
+      },
+      {
+        "field": "tu_propiedad",
+        "question": "¿Lista compras víveres '5% de comisión mínimo $450' — sigue vigente o subió por inflación 2026?",
+        "added_by": "wc",
+        "added_at": "2026-05-13T22:00:00Z"
+      },
+      {
+        "field": "como_llegar",
+        "question": "Renta camionetas: lista actual incluye 9 proveedores. ¿Mantienes todos o quitas los que no funcionan bien? (Algunos tienen 3+ años en la lista, validar.)"
+      }
+    ]
+  },
+  "_signature_canonical": "— Alexander 🌅\n· rincondelmar\n· club",
+  "_signature_note": "Footer aprobado Alex 2026-05-13 thread/44. Aparece al final de TODOS los campos long-form (tu_propiedad, como_llegar, manual_casa, instrucciones_salida, otros_detalles). NO en title ni description (no space + ya tienen call-to-action propia).",
+  "airbnb_fields": {
+    "title": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "Villa pie de playa · chef · alberca · 30 personas",
+      "char_count": 48,
+      "wc_notes": "[para Alex] Actual: 'Villa a pie de playa, chef, 30 personas' (39 chars). Propongo agregar 'alberca' (palabra que aparece en 35% de búsquedas según search 'casa Acapulco playa'). Si prefieres el actual, lo mantengo."
+    },
+    "description": {
+      "max_chars": 500,
+      "format": "limited_markdown",
+      "content": "🏅 Villa Favorita en Airbnb — una de las villas frente al mar mejor calificadas en la Costa del Pacífico Mexicano.\n\nDa el primer paso y quédate sin palabras: la alberca infinita, el océano y el cielo se funden en un solo horizonte. Bienvenido a Villa Rincón del Mar.\n\n💬 Más de 168 reseñas de 5 estrellas avalan nuestro servicio. ¡Te esperamos!",
+      "char_count": 352,
+      "wc_notes": "Mantengo el actual sin cambios — está bien optimizado, 4.83★ aggregate respaldando 'mejor calificadas' es honesto, hook funciona. {open: ¿reseñas count actualizar? AirBnB dice 168, D1 sync 2026-05-12 dice 167, content collection apps/web dice 167. Margin de error mínimo, mantengo 168 o cambio a '170+' para no actualizar cada mes?}"
+    },
+    "tu_propiedad": {
+      "max_chars": 2500,
+      "format": "limited_markdown",
+      "content": "Villa completa con acceso directo a la playa, diseñada por un arquitecto mexicano de renombre. Arquitectura abierta y minimalista, materiales naturales, brisa marina permanente. 6 habitaciones · 18 camas · 6.5 baños · hasta 30 huéspedes:\n\n🛏️ Suite principal con terraza privada y vista al mar — hasta 5 personas\n🛏️ 3 habitaciones para 5 personas c/u\n🛏️ 1 habitación para 7 personas\n🛏️ 1 habitación para 3 personas\n\nTodas las recámaras incluyen: A/C, WiFi, clóset, baño completo, toallas de habitación y playa, amenidades de baño.\n\n✅ Servicios Incluidos\nTodo esto forma parte de tu estancia, sin costo adicional:\n👨‍🍳 Chef Celene, cocinera y mozo durante toda tu estancia — menú completo, especialidades huachinango a la talla al carbón, ceviche peruano de pez vela, cortes mexicanos, americanos y argentinos\n🏊 Alberca infinita con palapa-bar frente al océano\n🏖️ Área lounge en playa con camastros y hamacas\n🧹 Limpieza diaria de habitaciones (cambio de sábanas semanal, toallas cada 3 días)\n🎵 Sistema de audio y TV\n🛻 Apoyo en renta de camionetas para hasta 20 personas, con o sin chofer\n🛥️ Coordinación de renta de yates y lanchas\n\n🛎️ Servicios opcionales\nPersonaliza tu estancia. Coordinamos al momento de tu reservación:\n🍹 Servicio de bebidas en palapa-bar y playa\n🛒 Compra y surtido de víveres previo a tu llegada\n🔥 Fogata en la playa\n🥥 Cocos frescos al momento\n💆 Masajes en sitio\n🐴 Paseo a caballo\n🚣 Tour en la Laguna de Coyuca\n🤿 Buceo, snorkel, pesca y esquí acuático\n🎉 Cenas y eventos privados — paquete bodas desde $1,400/persona",
+      "char_count": 1654,
+      "wc_notes": "Cambios vs actual: (1) agregué 'Chef Celene' por nombre (alinea con confirmed Q-A1, brand-personal touch); (2) cambié 'Servicios Adicionales (costo aparte) Contáctanos antes de reservar y te enviamos lista de precios completa' → 'Servicios opcionales Coordinamos al momento de tu reservación' (más seguro post-2026 policy, evita 'contáctanos' que policy considera off-platform invitation); (3) AGREGUÉ línea 🎉 paquete bodas $1,400 al final (SEO + alineación con AirBnB Directions actual que ya menciona $1,400). {open: ¿OK mencionar precio $1,400 aquí o solo decir 'eventos privados' sin precio?}"
+    },
+    "acceso_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Los huéspedes disfrutan todas las áreas e instalaciones de la villa. El servicio de habitación opera tres días por semana. Para estancias largas, cambio de sábanas semanal y toallas cada tres días.",
+      "char_count": 198,
+      "wc_notes": "Mantengo idéntico al actual, solo limpieza menor (sin doble punto al final, conjunción cambio sutil para flow)."
+    },
+    "interaccion_huespedes": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Karina, nuestra co-anfitriona, está disponible para apoyarte antes y durante tu estancia. Coordinamos planeación de excursiones y actividades, y resolvemos cualquier duda por mensaje en AirBnB.",
+      "char_count": 195,
+      "wc_notes": "[para Alex] Cambio importante: actual dice 'por medio de teléfono o whats una vez realizada la reservación' — esto VIOLA Off-Platform Policy 2026 (sharing phone). Cambié a 'por mensaje en AirBnB' (compliant). {open: ¿OK perder mención WhatsApp aquí? Guests AirBnB ya entienden que el messaging es vía plataforma.}"
+    },
+    "otros_detalles": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Villa ubicada en zona tranquila a 35 min del aeropuerto de Acapulco, alejada del bullicio de la bahía. Acceso directo a la playa, alberca infinita frente al océano. Aceptamos grupos familiares, parejas y eventos privados con previa coordinación. Mascotas bienvenidas (avisar al reservar). Estancia mínima 2 noches; fines de semana pueden requerir 3.",
+      "char_count": 348,
+      "wc_notes": "Field EMPTY en actual. Drafté contenido con: (1) ubicación contexto + tiempo aeropuerto; (2) 'alejada del bullicio' (NO 'inseguridad' per thread/36); (3) tipos de grupos aceptados; (4) mascotas y min stay. {open: ¿confirmas mascotas en RdM? Memoria proyecto dice 'todas las propiedades aceptan' pero pet fee inconsistente ($250 flat RdM vs $300/pet Huerta). ¿Estancia mínima 2 noches correcto?}"
+    },
+    "como_llegar": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️\n\nKit de bienvenida — Villa Rincón del Mar\n\n1️⃣ Tu viaje y llegada, atención urgente\n2️⃣ Servicio de cocina y compras de víveres\n3️⃣ Si prefieres hacer tus propias compras\n4️⃣ Actividades y recomendaciones\n5️⃣ Restaurantes y servicio a casa\n6️⃣ Eventos, cenas y fiestas en la playa o terraza\n\nA detalle:\n\n⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️\n\n1️⃣ Tu viaje y llegada\n\nTe recomendamos usar el libramiento Acapulco-Zihuatanejo desde la última caseta 'La Venta'. Google Maps y Waze así lo indican. Te ahorras el macro-túnel y el tráfico de Acapulco. Autopista hasta la costa, luego 15 km por carretera.\n\nUbicación: https://maps.app.goo.gl/GEHJDhXvcTGcqxRv9\n\nTransporte en camioneta con chofer:\n— Local Acapulco · Miguel Travel Vans · WhatsApp en la app de tu teléfono\n— Foráneos CDMX · varios proveedores disponibles, te compartimos lista al confirmar reservación\n\nEmergencias y servicios cerca:\n— Consultorio médico y dental a 10 min: https://maps.app.goo.gl/oDDepT2qjpkw9yG56\n— Farmacia del Eje a 10 min: https://maps.app.goo.gl/epgtmxu62TqUUfPn6\n— Farmacias Similares: https://maps.app.goo.gl/rXJ7U2551yde39WS8\n— Talachas y aceite a 1 km: https://maps.app.goo.gl/5wEbgQmBDH1BTfV96\n\n⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️\n\n2️⃣ Servicio de cocina, limpieza y compras\n\nNuestra chef Celene, una cocinera y un mozo ya están incluidos en tu renta. Para las compras de víveres agregamos un cargo de logística al costo de tus compras — todo opcional, también puedes hacer las compras, cocinar y limpiar tú mismo.\n\n— Dos semanas antes de tu viaje te conectamos con Celene para definir el menú. Ella te da ideas y ejemplos.\n— 5 días antes envías el menú; ella lo convierte a lista de compras y asegura que todo esté en casa a tu llegada.\n— Servicio de cocina inicia 3 PM para comida/cena desde las 5 PM.\n— Los últimos grupos gastaron ~250-280 pesos por persona por noche en víveres (varía por temporada y menú).\n\n⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️\n\n3️⃣ Si prefieres hacer tus propias compras\n\n— Bodega Aurrera (10 min): https://maps.app.goo.gl/NMSzPkP1ruXv81kt9\n— Sam's Club (35 min): https://maps.app.goo.gl/guak2jw1xqx3FBCV9\n— Mercado de Pescado y Mariscos (20 min): https://goo.gl/maps/syYzCSHx1JnZPxdCA\n— Pescadería 'La More' (1 km, servicio a domicilio)\n— Mariscos 'Doña Lety' (1 km, servicio a domicilio)\n— OXXO (100 m): https://maps.app.goo.gl/bH113b5SqEHh3fEf9\n— Tienda 'El Güero' (400 m): https://maps.app.goo.gl/ST3KQNsuUGeWezTZA\n— Tortillería (300 m): https://maps.app.goo.gl/PRg36oUbrykRyVX8A\n\n⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️\n\n4️⃣ Actividades y recomendaciones\n\n— Masajes a domicilio · servicio de Michel, contactamos al confirmar reservación\n— Yates, snorkel, pesca, tours en lancha · operadores locales recomendados, coordinamos al confirmar\n— Barra de Coyuca · donde la laguna se junta con el mar, restaurantes palapa, tours: https://goo.gl/maps/EpM51zhavj9PRv3F6\n— Liberación de tortugas marinas: https://maps.app.goo.gl/dFWdnRb8eHGMyYMm9\n— Esquí acuático, yate en laguna · Tres Marías: https://maps.app.goo.gl/oPAyfoXcrKsMSFAR8\n— Temazcal · experiencia única en parque Papagayo cada domingo o grupos privados: https://share.google/GdLSpR99UamJOnB4F\n\n⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️\n\n5️⃣ Restaurantes y servicio a domicilio\n\n— 'El Restaurancito' (500 m, hasta 6 PM): https://maps.app.goo.gl/33tLC1dP6dXezAu37\n— 'Bonita, su cocina' (500 m, hasta 5 PM): https://maps.app.goo.gl/ADPV2Lw8ckKzFxat6\n— Baby's pizza, hamburguesas, alitas (entrega hasta 10 PM)\n— Tres Marías (5 km, restaurante con vista a laguna): https://maps.app.goo.gl/oPAyfoXcrKsMSFAR8\n\n⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️⛱️\n\n6️⃣ Eventos, cenas y fiestas\n\n— Cenas casuales en la playa con mobiliario plástico — sin costo extra\n— Cenas formales en terraza o casa con mobiliario de casa — sin costo extra\n— Personal de noche para cenas: cocinera 3-10 PM, mesero o barman 5 PM-12 AM (avisar una semana antes)\n— Ceremonias en playa con jupa decorada desde $5,000 pesos\n— Cena formal en la playa con luces, petates, mobiliario rentado y 8 hrs servicio: desde $800 por comensal más víveres (avisar dos semanas antes)\n— Paquete completo bodas, XV años, aniversarios, con menú 3 tiempos y 8 hrs servicio: desde $1,400 por comensal (avisar un mes antes)\n— DJ, mariachis, banda en vivo, fotógrafo, maquillaje, pastelería · te conectamos con proveedores recomendados al confirmar evento\n\nFotos de bodas, XV años y eventos en el anuncio del Airbnb.\n\n¡Bienvenido!\n\n— Alexander 🌅\n· rincondelmar\n· club\n\n⛱️⛱️⛱️⛱️",
+      "char_count": 4527,
+      "wc_notes": "Cambios mayores vs actual: (1) REMOVÍ todos los teléfonos individuales de terceros (Celene, Michel, AcaScuba, Carlos Vinalay, Norma Rivera, Daribel, Markos, Memo, Sandra, DJ Pepe Vargas, los 3 mariachis, las 3 pastelerías, Danilo, Brian, Belushama, los 2 padres) — reemplazado por 'coordinamos al confirmar reservación' (post-2026 policy + LFPDPPP). (2) REMOVÍ los 9 proveedores transporte CDMX con teléfonos — reemplazado por 'te compartimos lista al confirmar reservación'. (3) AGREGUÉ footer canonical Alex. (4) Mantuve URLs Google Maps (legítimas para ubicaciones). (5) Removí mención 'Pastelería el Sueño', 'Pasteles Liz', 'Pasteles Alex' explícitos. {open: ¿OK esta versión sin teléfonos individuales, contactos coordinados via Karina/Alex post-booking? La 'lista al confirmar reservación' iría via mensaje AirBnB inbox.} {open: ¿el 'cargo de logística' actual es 5% mínimo $450 — sigue vigente o subió 2026?}"
+    },
+    "metodo_llegada": {
+      "max_chars": 200,
+      "format": "plain_text",
+      "content": "Caja de seguridad para llaves",
+      "char_count": 29,
+      "wc_notes": "Mantengo idéntico. La clave caja '6720' se documenta en Check-in Instructions (campo separado privado AirBnB), NO aquí."
+    },
+    "wifi_red": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "[para Alex] Status quo. Memoria proyecto Q-A8 confirma mantener universal (no rotación). Pero contraseña = network name = débil. Consideración futura: ¿rotar a 'RdM-2026' o algo más fuerte? No bloquea drafting."
+    },
+    "wifi_password": {
+      "max_chars": 50,
+      "format": "plain_text",
+      "content": "rincondelmar",
+      "char_count": 12,
+      "wc_notes": "Status quo per Q-A8."
+    },
+    "manual_casa": {
+      "max_chars": 5000,
+      "format": "limited_markdown",
+      "content": "Bienvenido a Villa Rincón del Mar 🌅\n\n📶 WiFi\nRed: rincondelmar · Contraseña: rincondelmar\n\n🔥 Boiler / agua caliente\nEl boiler normalmente está apagado — el agua llega tibia por el clima cálido. Si prefieres agua caliente: prende el boiler ubicado detrás de la cocina, en el área de servicio.\n\n🔒 Cajas de seguridad\nCada habitación cuenta con caja de seguridad. Karina, nuestra encargada, te da el código de acceso al momento del check-in. No nos hacemos responsables por efectivo o cosas de valor que no se guarden en las cajas de seguridad.\n\n🏊 Alberca\nInfinita, frente al océano. Mantenida diariamente. Sin profundidad de clavados — disfruta nadando.\n\n🍳 Cocina\nEquipada completa: estufa 6 quemadores, horno, refrigerador grande, microondas, licuadora, cafetera. Chef Celene y equipo manejan el área durante tu estancia.\n\n🧹 Limpieza\nServicio diario de habitaciones. Cambio de sábanas semanal. Toallas cada 3 días.\n\n🚿 Toallas\nToallas de baño y de playa incluidas — encuentras toallas extra en el clóset de cada habitación.\n\n🛒 Compras de última hora\nOXXO a 100 metros de la villa. Tienda 'El Güero' a 400 metros con bistec, cecina, queso. Tortillería a 300 metros.\n\n🚨 Emergencias\nKarina disponible durante tu estancia para cualquier necesidad — la encuentras en la propiedad o vía mensaje en AirBnB.\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 1278,
+      "wc_notes": "Expansión mayor del actual (402 chars → 1278 chars). Modelo: Huerta Manual de la casa (2,487 chars, modelo según CC §2 thread/37). Agregué: alberca info, cocina detalles, toallas, compras última hora, emergencias. Mantuve: WiFi, boiler, caja seguridad. {open: ¿confirmas detalles cocina? '6 quemadores' es spec genérica, valida que match.} {open: ¿Karina es la única referencia o también deberíamos mencionar Celene chef en manual?}"
+    },
+    "instrucciones_salida": {
+      "max_chars": 1000,
+      "format": "plain_text",
+      "content": "Salida 11 AM. Antes de salir, te pedimos:\n\n— Apaga A/C, ventiladores y luces\n— Deja las llaves en la caja de seguridad de la entrada\n— Si usaste las cajas de seguridad de habitaciones, déjalas abiertas y vacías\n— Avisa a Karina que ya saliste\n\nSi necesitas salida tardía, avísanos con anticipación y vemos disponibilidad.\n\n¡Gracias por elegirnos!\n\n— Alexander 🌅\n· rincondelmar\n· club",
+      "char_count": 391,
+      "wc_notes": "Field EMPTY en actual (3 de 4 propiedades vacías). Drafté simple alineado con horario actual (11 AM). {open: ¿quieres incluir CTA review aquí o lo dejas para mensaje AirBnB checkout PROG: 80?}"
+    }
+  }
+}
