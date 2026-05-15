@@ -9,6 +9,19 @@
 
 ---
 
+## 🚨 READ FIRST — thread/57 edge case audit
+
+**Before starting Día 1**, leer `threads/57-wc-edge-case-audit-v2-plan.md` (publicado 2026-05-15).
+4 critical mitigations REQUIRED pre-flight:
+1. ✅ Verify `chat-to-contact.json` exists + current (else Stage A breaks)
+2. ✅ Generate phone hash PEPPER (32 random bytes, NEVER commit)
+3. ✅ Use `@cf/baai/bge-m3` multilingual (NOT bge-base-en — Spanish corpus)
+4. ✅ Outcome label uses 3-value enum + cancellation filter
+
+Plus 6 medium-priority mitigations also documented in thread/57.
+
+---
+
 ## 0. ⚠️ HALLAZGO CRÍTICO — leer ANTES de empezar
 
 WC verificó D1 en producción (2026-05-15 madrugada) y descubrió que **CC-Bot ya construyó las tables Phase B**:
@@ -211,11 +224,16 @@ print(f"Mixed: {len(df[df['classification'] == 'mixed'])}")
 
 **Costo Haiku para unclear**: ~$2-5 total (asumo ~500 unclear conversations, $0.0001/conv).
 
-**Acceptance criteria Stage 0**:
+**Acceptance criteria Stage 0** ⚠️ UPDATED (thread/57 #4):
 - [ ] `business_conversations.parquet` con ≥6,500 rows (estimado del corpus business genuino)
 - [ ] `personal_conversations.parquet` con ~500-1500 rows excluded
 - [ ] Report markdown con breakdown: rule_1_booking, rule_2_category, rule_3_keywords, llm_classified
 - [ ] Sanity check: total = msgs.csv conversations count
+- [ ] **MANUAL REVIEW REQUIRED**: sample 100 conversations clasificadas business + 100 personal
+  - Manual eyeball check accuracy
+  - If >5% false negatives (business → personal) → refine keywords + retry
+  - Bias should be conservative (prefer false_business than false_personal)
+- [ ] Conservative threshold applied: ANY business signal (biz_hits >= 1, pers_hits == 0) → business
 
 ### 3.2 Stage A — Conversation reconstruction
 
@@ -253,7 +271,8 @@ from datetime import timedelta
 
 # ... (full implementation)
 
-# Outcome classification
+# Outcome classification ⚠️ UPDATED (thread/57 #2)
+# Added: cancellation filter + AirBnB causality check
 def classify_outcome(row, bookings_df):
     phone = row['phone']
     last_msg = row['last_msg_at']
@@ -262,26 +281,47 @@ def classify_outcome(row, bookings_df):
     if user_bookings.empty:
         return 'not_converted'
     
-    # Check if any booking arrival within 90 days of last message
+    # Check booking arrival within 90 days of last message (causality)
     booking_within_90d = user_bookings[
         (user_bookings['first_arrival'] >= last_msg) &
         (user_bookings['first_arrival'] <= last_msg + timedelta(days=90))
     ]
     
     if booking_within_90d.empty:
-        # Check 180 days window (indirect)
+        # Wider window for indirect (90-180 days)
         booking_within_180d = user_bookings[
             (user_bookings['first_arrival'] >= last_msg) &
             (user_bookings['first_arrival'] <= last_msg + timedelta(days=180))
         ]
-        if not booking_within_180d.empty:
-            return 'converted_indirect'
-        return 'not_converted'
+        if booking_within_180d.empty:
+            return 'not_converted'
+        return 'converted_indirect'
     
-    # Within 90 days — check channel
-    if 'Direct' in booking_within_90d.iloc[0].get('channels', ''):
+    # Within 90 days — apply additional filters
+    booking = booking_within_90d.iloc[0]
+    
+    # FILTER 1: Cancelled bookings are NOT conversions
+    paid = booking.get('total_paid', 0) or 0
+    charged = booking.get('total_charged', 0) or 0
+    status = str(booking.get('status', '')).lower()
+    
+    if paid == 0 and 'cancel' in status:
+        return 'not_converted'  # Cancelled, no revenue
+    
+    # FILTER 2: AirBnB causality check
+    # If booking is AirBnB but conv NEVER mentions AirBnB → likely unrelated
+    channels = str(booking.get('channels', ''))
+    if 'Airbnb' in channels or 'airbnb' in channels.lower():
+        full_text = (row.get('full_text_lower') or '')
+        if 'airbnb' not in full_text:
+            return 'converted_indirect'  # Related but not directly caused
+    
+    # FILTER 3: Direct channel + reasonable payment = direct conversion
+    if 'Direct' in channels and paid > 0:
         return 'converted_direct'
-    return 'converted_indirect'  # AirBnB/Booking.com
+    
+    # Default: indirect (some uncertainty)
+    return 'converted_indirect'
 
 # Engagement level
 def engagement_level(row):
@@ -802,16 +842,17 @@ wrangler r2 object put rdm-knowledge/temporal_insights_v2.md \
   --remote
 ```
 
-### 6.3 Workers AI Vectorize
+### 6.3 Workers AI Vectorize ⚠️ UPDATED (thread/57 audit)
+
+**Model choice: `bge-m3` multilingual (NOT bge-base-en).**
+
+Razón: corpus es ~95% español. English-only model pierde matices ("está libre", "para el puente", "fecha disponible"). Multilingual gana.
 
 ```bash
-# Create index (1024 dim, cosine)
+# Create index (1024 dim — matches bge-m3 output, cosine metric)
 wrangler vectorize create rdm-conversations-v2 \
   --dimensions=1024 \
   --metric=cosine
-
-# Populate via Python script (uses @cf/baai/bge-large-en-v1.5 o equivalent)
-python stage_vectorize.py
 ```
 
 `stage_vectorize.py`:
@@ -824,8 +865,8 @@ CF_ACCOUNT_ID = os.getenv('CF_ACCOUNT_ID')
 CF_TOKEN = os.getenv('CF_TOKEN')
 
 def get_embedding(text):
-    # Use Anthropic embeddings or Workers AI direct
-    url = f'https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/baai/bge-base-en-v1.5'
+    # ⚠️ Use bge-m3 multilingual (NOT bge-base-en) — Spanish corpus
+    url = f'https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/baai/bge-m3'
     r = requests.post(url, 
         headers={'Authorization': f'Bearer {CF_TOKEN}'},
         json={'text': text[:2048]}
@@ -846,7 +887,9 @@ for _, conv in business_convs.iterrows():
         'values': emb,
         'metadata': {
             # NO TEXT — privacy
-            'phone_hash': hash_phone(conv['phone']),
+            # ⚠️ phone_hash uses SALTED SHA-256 with PEPPER (thread/57 #8)
+            # Plain hash is reversible — pepper makes it not
+            'phone_hash': hash_phone_salted(conv['phone']),
             'outcome': conv['outcome'],
             'property_room_id': conv.get('detected_room_id'),
             'group_size': conv.get('detected_group_size'),
@@ -868,6 +911,40 @@ for i in range(0, len(vectors), batch_size):
 ```
 
 Costo estimated: ~6,500 conversations × $0.0001/embed = ~$0.65. Negligible.
+
+### 6.3.1 ⚠️ Phone hash with pepper (privacy critical, thread/57 #8)
+
+NEVER use unsalted hash — reversible via brute force MX phone prefix.
+
+Setup pre-flight:
+```bash
+# Generate pepper once (32 random bytes)
+python -c "import secrets; print(secrets.token_hex(32))" > C:/rdm-wa-api/.phone-pepper
+# Verify
+cat C:/rdm-wa-api/.phone-pepper
+# NEVER commit to git, NEVER upload to R2/D1/Vectorize
+```
+
+Function:
+```python
+import hashlib
+import os
+
+PHONE_PEPPER = open('C:/rdm-wa-api/.phone-pepper').read().strip()
+assert len(PHONE_PEPPER) >= 64, "Pepper too short — regenerate"
+
+def hash_phone_salted(phone_e164: str) -> str:
+    if not phone_e164:
+        return None
+    h = hashlib.sha256()
+    h.update(PHONE_PEPPER.encode('utf-8'))
+    h.update(phone_e164.encode('utf-8'))
+    return h.hexdigest()[:16]  # 16-char truncated, sufficient anti-collision
+```
+
+Trade-off: pierde JOIN capability phone_hash entre Vectorize y D1. Acceptable porque D1 ya tiene phone_e164 directo (guests table); Vectorize solo necesita "agrupable por mismo cliente sin identificar".
+
+Si pepper se pierde: vectores quedan permanentemente anónimos. NO problem.
 
 ### 6.4 Airtable (opcional, after D1 deploy)
 
