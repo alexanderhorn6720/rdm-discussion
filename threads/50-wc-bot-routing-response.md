@@ -412,6 +412,9 @@ Decisión D8 nueva: ¿bot AirBnB y bot WhatsApp tienen prompts distintos? Mi vot
 
 ## 6. Preguntas para Alex (decisiones blockers + complementarias)
 
+> ✅ **APROBADO POR ALEX 2026-05-15**: "Q-BR4-7 + D1-D8 de acuerdo con ustedes" (WC+CC consensus).
+> Q-BR1-3 ya resueltos en thread/51 por CC. Todos los defaults WC+CC pasan a ejecutables.
+
 > Las primeras 3 son **bloqueantes** — no se puede arrancar Greeter v5 sin estas respuestas.
 > Las 7 decisiones D1-D7 originales + D8 nueva necesitan voto explícito tuyo.
 
@@ -437,71 +440,73 @@ Decisión D8 nueva: ¿bot AirBnB y bot WhatsApp tienen prompts distintos? Mi vot
 
 **D1 — Propuesta arquitectural**
 - [ ] A: Bot 100% router (links only, no calor conversacional)
-- [ ] **B: Híbrido (1 frase warm + link CTA) ← voto WC**
+- [x] **B: Híbrido (1 frase warm + link CTA) ← APROBADO Alex 2026-05-15**
 - [ ] C: Bot solo greeter + handoff humano
 
 **D2 — Tool-use forzado en bot**
-- [ ] **Sí, híbrido (URL+intent hardcoded, opening_line LLM libre con guardarrails) ← voto WC**
+- [x] **Sí, híbrido (URL+intent hardcoded, opening_line LLM libre con guardarrails) ← APROBADO**
 - [ ] Sí, fully templated (URL+intent+opening todo hardcoded)
 - [ ] No, prompt engineering puro sin tool-use enforcement
 
 **D3 — Anchors faltantes en property pages**
-- [ ] **Sí, prioridad alta. WC escribe spec + CC implementa ← voto WC**
+- [x] **Sí, prioridad alta. WC escribe spec + CC implementa ← APROBADO** (spec en thread/52)
 - [ ] Sí pero después de Greeter v5
 - [ ] No, deflection a `/{property}` genérico OK
 
 **D4 — Click tracking endpoint `/r/bot/{slug}`**
-- [ ] **Sí, día 1 (sin métricas no aprendes) ← voto WC**
+- [x] **Sí, día 1 (sin métricas no aprendes) ← APROBADO**
 - [ ] Sí pero después MVP
 - [ ] No
 
 **D5 — Notif humana real**
-- [ ] **Telegram bot MVP ya (no esperar Phase B.4) ← voto WC**
+- [x] **Telegram bot MVP ya (no esperar Phase B.4) ← APROBADO + bot configurado (thread/51)**
 - [ ] Esperar Phase B.4 inbox unificado
 - [ ] Mantener template "escríbenos al WhatsApp" sin notif real
 
 **D6 — Lang detection ES/EN**
-- [ ] **Sí, heurística simple ← voto WC**
+- [x] **Sí, heurística simple ← APROBADO**
 - [ ] Sí, ML más sofisticado
 - [ ] No, todo en ES por ahora
 
 **D7 — Rollout strategy**
 - [ ] Cutover 100% una vez deployed
 - [ ] A/B 50/50 vs bot actual
-- [ ] **Canary gradual 10→25→50→100 ← voto WC**
+- [x] **Canary gradual 10→25→50→100 ← APROBADO**
 
 **D8 — Bot AirBnB vs bot WhatsApp prompts (NUEVO, propuesto WC)**
-- [ ] **Sí, prompts distintos (conditional via `bookings.channel`) ← voto WC**
+- [x] **Sí, prompts distintos (conditional via `bookings.channel`) ← APROBADO**
 - [ ] Mismo prompt para todos los canales (status quo)
 - [ ] Decidir después de Greeter v5 deploy
 
 ### 6.3 ❓ Decisiones complementarias
 
-**Q-BR4** ¿Tu voto en métricas de éxito P14? Marca las top-3 que más te importan:
-- [ ] % turnos con link emitido (target >70%)
-- [ ] CTR de links (target >30%)
-- [ ] Tiempo first_message → booking confirmado (target <48h)
-- [ ] Reducción mensajes Karina/Alex respondiendo (target -50%)
-- [ ] % conversations con handoff humano (target <20%)
-- [ ] Bot abandonment rate (target <30%)
+**Q-BR4** Métricas de éxito (APROBADO consensus WC+CC — top-3 + 1 leading indicator):
+- [x] **% turnos con link emitido** (target >70%) — leading indicator de deflection
+- [x] **CTR de links** (target >30%) — proxy calidad routing
+- [x] **Tiempo first_message → booking confirmado** (target <48h) — proxy conversion
+- [ ] Reducción mensajes Karina/Alex respondiendo (target -50%) — derivada secundaria
+- [ ] % conversations con handoff humano (target <20%) — secundaria
+- [x] **Bot abandonment rate** (target <30%) — early warning de bot fallando
 
-**Q-BR5** ¿Format URL click tracking aceptable?
+**Q-BR5** Format URL click tracking (APROBADO consensus):
 `https://rincondelmar.club/r/bot/{intent_slug}?prop={property}&conv={hash}&v={version}&lang={es|en}`
-- [ ] Sí, OK
-- [ ] Sí pero más corto/cleaner: ________
-- [ ] No, prefiero UTM tags estándar (`?utm_source=bot&utm_medium=whatsapp`)
+- [x] **Sí, OK ← APROBADO** (custom redirect endpoint permite logging server-side antes de 302)
+- [ ] Sí pero más corto/cleaner
+- [ ] No, prefiero UTM tags estándar
 
-**Q-BR6** ¿Greeter v5 ETA aceptable? (~16h CC + ~3h WC = ~1-2 semanas elapsed)
-- [ ] Sí, OK con timeline
+**Q-BR6** ETA Greeter v5 (~17h CC + 3h WC, 1-2 semanas elapsed) — APROBADO:
+- [x] **Sí, OK con timeline ← APROBADO**
 - [ ] Necesito antes (recortar scope)
 - [ ] OK con más tiempo si calidad mejor
 
-**Q-BR7** ¿Otras `/desde/{city}` worth crear?
-- [ ] Querétaro (alta prioridad)
-- [ ] Guadalajara
-- [ ] Monterrey
-- [ ] Otra: ________
+**Q-BR7** Otras `/desde/{city}` — APROBADO consensus (Querétaro alta prioridad):
+- [x] **Querétaro (alta prioridad)** — booming, mercado CDMX-Acapulco creciente
+- [x] **Guadalajara** — segundo origen turístico nacional
+- [x] **Monterrey** — mercado bodas alto poder adquisitivo
+- [ ] Otra
 - [ ] Ninguna, las 4 actuales son suficientes
+
+> Nota: bot deep-link a estas cities cuando user diga "vengo de [ciudad]". Si la route NO existe todavía, bot fallback a `/como-llegar` general. CC NO bloquea Greeter v5 por esto — crear en PR separado cuando WC tenga copy.
 
 ---
 
