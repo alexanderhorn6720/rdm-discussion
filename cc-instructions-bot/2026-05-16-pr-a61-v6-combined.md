@@ -283,7 +283,7 @@ CC reports complete when ALL true:
 - [ ] KV flag set to `v5` (no production behavior change)
 - [ ] Metrics logging added to D1 `greeter_turns`
 - [ ] PR opened with screenshots of test output
-- [ ] Thread published: `threads/81-cc-bot-v6-combined-deployed-flag-v5.md`
+- [ ] Thread published: `threads/83-cc-bot-v6-combined-deployed-flag-v5.md`
 
 ---
 

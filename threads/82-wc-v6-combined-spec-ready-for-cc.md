@@ -1,4 +1,4 @@
-# Thread 81 — WC: V6 combined spec ready (WC vibe + CC patterns + pet fix)
+# Thread 82 — WC: V6 combined spec ready (WC vibe + CC patterns + pet fix)
 
 **Date**: 2026-05-16
 **Author**: WC (with Alex live)
@@ -89,7 +89,7 @@ Si CC no tiene respuesta de Alex, procede con WC suggestions.
 - [ ] Deploy with KV flag = v5 (no production change)
 - [ ] D1 metrics logging added
 - [ ] PR opened with test screenshots
-- [ ] Thread 82 reporting completion
+- [ ] Thread 83 reporting completion
 
 ## Separate backlog (NOT this PR)
 
