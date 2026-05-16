@@ -324,3 +324,191 @@ No change to overall sequence. Just spec contents updated.
 ---
 
 **End of delta. CC reads both specs together.**
+
+---
+
+## AMENDMENT 1 — Multi-inquiry overlap handling
+
+**Date**: 2026-05-16 (same session, after Alex review)
+**Issue**: Multiple inquiries can target SAME villa + SAME dates simultaneously (e.g. 3 Airbnb inquiries for RdM May 20-25 before any converts). Original spec didn't define visual handling for overlap.
+
+### Decision
+
+**Three-vista split with clear conceptual boundaries**:
+
+| View | Shows | Hides |
+|---|---|---|
+| **Gantt** | `confirmed` + `request` only (operational view — what's really happening) + mini-badge `📩N` per row indicating N inquiries exist | Inquiries as bars, leads without locked dates |
+| **List** | EVERYTHING (confirmed, request, inquiry, also leads if dates+property locked) + new column `Conflict?` showing dates overlap | — |
+| **Inbox** | Leads (D1 `leads` table without locked dates), conversations, escalations | Bookings with no recent activity |
+
+### Why
+
+1. **Mental model**: An inquiry is NOT occupancy. It's a lead in pipeline. Mixing it with `confirmed` bars in Gantt gives false sense of full booking.
+2. **Operational planning**: Staff/meals decided by confirmed only. Gantt = operations.
+3. **Commercial pipeline**: Inquiries managed by urgency + conflict, not by calendar position. List ordered by urgency is the right tool.
+4. **Visual saturation**: 3+ inquiries overlapping the same villa+dates would require either sub-rows (variable height, breaks layout) or dense pattern overlay (illegible).
+
+### Gantt amendment — mini-badge in row header
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│            May 20  21  22  23  24  25  26                          │
+│ RdM 📩3    [══Pérez(16)══]                                         │
+│ Morenas    [══González(8)══]                                       │
+│ Combinada                                                           │
+│ Huerta 📩1 [══Daniela(8)══]              [══Eric(4)══]            │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+**Rules**:
+- `📩N` = N inquiries active for this villa within current visible date range
+- Hidden if N=0
+- Hidden if status filter excludes inquiries (e.g. "Confirmed only" mode)
+- Click on badge → opens side drawer (NOT navigation to List view; drawer is faster)
+
+### Side drawer content
+
+```
+┌──────────────────────────────────────────────────┐
+│ 3 inquiries · RdM · May 16-30                 [×]│
+├──────────────────────────────────────────────────┤
+│ 🟠 García (12) · Airbnb · May 20-25              │
+│    Sent: May 15 (2 days ago)                     │
+│    Status: inquiry · No response: 18h            │
+│    [Open conv] [Open Beds24]                     │
+├──────────────────────────────────────────────────┤
+│ 🟢 Ramos (20) · Direct · May 21-23              │
+│    Sent: May 16 (1 day ago)                      │
+│    Status: inquiry · ⚠ Conflicts w/ García       │
+│    [Open conv] [Mark engaged]                    │
+├──────────────────────────────────────────────────┤
+│ 🔵 Smith (15) · Booking.com · May 28-30          │
+│    Sent: May 14 (3 days ago)                     │
+│    Status: inquiry · No conflict                 │
+│    [Open conv]                                   │
+└──────────────────────────────────────────────────┘
+```
+
+Drawer is a side panel (right side, ~400px wide), overlays Gantt without leaving page.
+
+### List view amendment — Conflict? column
+
+New column at right side of list:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ Guest       │ Prop │ Channel│ Arrival│ Status     │ Conflict?         │
+├──────────────────────────────────────────────────────────────────────┤
+│ Pérez (16)  │ RdM  │ 🟠 Air │ May 20 │ confirmed  │ —                 │
+│ García (12) │ RdM  │ 🔵 Bkg │ May 20 │ inquiry    │ ⚠ Pérez confirmed │
+│ Ramos (20)  │ RdM  │ 🟢 Dir │ May 21 │ inquiry    │ ⚠ 2 others        │
+│ Smith (15)  │ Mor  │ 🟠 Air │ May 28 │ inquiry    │ —                 │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Conflict detection rule**:
+- For each inquiry: check if other bookings (confirmed OR inquiry) exist for SAME `room_id` with overlapping date range (`arrival < other.departure AND departure > other.arrival`)
+- If conflict with `confirmed` → `⚠ {confirmed_guest_surname} confirmed`
+- If conflict with N other inquiries → `⚠ {N} others`
+- If no conflict → `—`
+
+Sort by `Conflict?` column: items with conflicts first (most urgent to resolve).
+
+### New badge calculation — query
+
+```sql
+-- Count inquiries per room within visible range
+SELECT
+  room_id,
+  COUNT(*) AS inquiry_count
+FROM beds24_bookings
+WHERE status = 'inquiry'
+  AND arrival <= ?range_end
+  AND departure >= ?range_start
+GROUP BY room_id;
+```
+
+Returns map `{room_id: N}` used by Gantt to render `📩N` badge.
+
+### Conflict detection — query (for List view)
+
+```sql
+-- For each inquiry, count overlapping bookings on same room
+SELECT
+  bb.id,
+  bb.room_id,
+  bb.status,
+  bb.arrival,
+  bb.departure,
+  COUNT(other.id) AS conflict_count,
+  GROUP_CONCAT(other.status) AS conflict_statuses
+FROM beds24_bookings bb
+LEFT JOIN beds24_bookings other ON
+  other.room_id = bb.room_id
+  AND other.id != bb.id
+  AND other.status NOT IN ('cancelled', 'no_show', 'archived')
+  AND other.arrival < bb.departure
+  AND other.departure > bb.arrival
+WHERE bb.status = 'inquiry'
+  AND bb.arrival <= ?range_end
+  AND bb.departure >= ?range_start
+GROUP BY bb.id;
+```
+
+Frontend formats `conflict_statuses` into the `Conflict?` cell text.
+
+### Updated visual rendering rules
+
+| Status | Gantt | List |
+|---|---|---|
+| `confirmed` | Solid bar, color del canal | Row with Status: confirmed |
+| `request` | Solid bar, color del canal | Row with Status: request |
+| `inquiry` | NOT in Gantt; counted in `📩N` badge | Row with Status: inquiry + Conflict? cell |
+| `black` | Gray pattern bar, no name | Row with Status: black, hidden by default |
+| `cancelled` / `no_show` | Hidden | Hidden by default, toggle to show |
+
+### Status filter update in Gantt
+
+```
+Status: ▼ Confirmed + Request (default)
+        ▼ Confirmed only
+        ▼ Include inquiries (shows as STRIPES — opcional, behind toggle)
+        ▼ Show all (include cancelled)
+```
+
+The "Include inquiries" mode is **opt-in only** — for debugging or when Alex specifically wants to see overlay. Default keeps Gantt clean.
+
+When "Include inquiries" is ON:
+- Inquiries render as stripes pattern bars (as original spec said)
+- May overlap visually with confirmed bars
+- Acceptable for debug; not for daily use
+
+### Updated effort estimate
+
+| Item | Original delta | After amendment |
+|---|---|---|
+| Gantt + List + KV + inquiry styling | 20-28h | 22-30h |
+| Multi-inquiry badge + side drawer + Conflict? column | — | +3-5h (included in range above) |
+| `/admin/inbox` | 13-17h | 13-17h (no change) |
+
+**Total still in 33-45h ballpark**.
+
+### Acceptance criteria additions
+
+- [ ] Gantt shows `📩N` mini-badge in row header when N inquiries active
+- [ ] Badge hidden when N=0
+- [ ] Click badge opens side drawer with inquiry list
+- [ ] Side drawer shows: guest, channel, dates, sent date, status, conflict flag, action buttons
+- [ ] Drawer has X to close, click outside to close
+- [ ] List view has `Conflict?` column
+- [ ] Conflict detection identifies confirmed-vs-inquiry overlaps
+- [ ] Conflict detection identifies inquiry-vs-inquiry overlaps
+- [ ] Sort by Conflict? column works (conflicts first)
+- [ ] "Include inquiries" toggle in Gantt status filter (opt-in stripes overlay)
+- [ ] Default Gantt status filter: "Confirmed + Request"
+- [ ] Inquiries NEVER render as bars in default Gantt view (only via opt-in)
+
+---
+
+**End of amendment. CC reads original + delta + this amendment together.**
