@@ -1,4 +1,4 @@
-# Thread 84 — WC: build spec /admin/bookings Gantt view
+# Thread 84b — WC: build spec /admin/bookings Gantt view
 
 **Date**: 2026-05-16
 **Author**: WC (with Alex)
