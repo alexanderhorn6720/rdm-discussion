@@ -123,6 +123,7 @@ Flujo típico: `brain → spec → DoIt → verify`.
 | Reviews ingestion (migration 0012 + `reviews-sync.ts` + ReviewsCarousel) | LIVE |
 | `pre_arrival_sent_at` cron on `bookings` direct table | LIVE (worker-pago, but only direct 5-row scope, NOT beds24_bookings) |
 | thread/115 guests.name resync from Beds24 + mojibake auto-fix + debug stats (PRs #98-100, migration 0034) | LIVE |
+| Vectorize index `rdm-conversations-v2` — 16,969 vectors live, bge-m3 1024d cosine (Data Mining v2 closure 2026-05-18) | LIVE (no bot consumption yet — wire futuro PR) |
 
 ### Pipeline CC (shipped + queued)
 
@@ -189,7 +190,7 @@ Sprints cortos, 1-8h cada uno. Pueden tomarse uno a la vez sin spec brain mode.
 | P2.11 | **Re-dedupe Alex 2 guest records** (g_01KRSZ + g_XRP4Y5, phones distintos) | 1h | Separate dedupe post-thread/115 |
 | P2.16 | **Karina onboarding final** — magic-link verify + walkthrough `/admin/{inbox,bookings,airbnb-content,extra-guests}` | 30-45min Alex + Karina | Unblocks objetivo handoff |
 | P2.18 | **weekend_price RdM erróneo** + cache expiry post-Jun 2027 → Default fallback | 1h | Beds24 pricing backlog |
-| P2.20 | **Vectorize tail unblock** — completar Data Mining v2 (17k embeddings → index `rdm-conversations-v2`) | 5min Alex scoped CF token + 2-3h CC-Data background, ~$0.19 | Handoff doc: `cc-instructions-data/2026-05-16-vectorize-handoff.md`. Bot NO consume aún (greeter v6 no wired); unlock futuro |
+| ~~P2.20~~ | ~~**Vectorize tail unblock**~~ ✅ **Cerrado 2026-05-18 evening** — Index `rdm-conversations-v2` live con **16,969 vectors** (dimensions=1024, metric=cosine, model=`@cf/baai/bge-m3`). Coverage 99.99%. Gap de 2 vectors (nuevas conversaciones post 2026-05-16 17:49Z) marcado acceptable per Alex "95% ok". Data Mining v2 sprint formalmente cerrado. Wire al Greeter v6+ pendiente como future PR (no urgente, bot funciona sin él). | — | — |
 | P2.21 | **Operator playbook v6 → bot KB integration verify** | 1h WC | Confirmar que Greeter v6 consume `data/artifacts/operator_playbook-v6-trimmed.md` correctamente |
 | P2.22 | **AirBnB published listings verify pet policy** | 30min Karina manual | Web + greeter ya correctos (`$300/estancia, máx 2`); pendiente verificar listings publicados en airbnb.com no digan `/noche` |
 
@@ -361,14 +362,14 @@ Después que CC termine pipeline actual (thread/115 + Pre-stay A1-A4):
 |---|---|---|---|
 | 1 | **Pre-stay MVP A1-A4** (`cc-instructions-bot/2026-05-18-pre-stay-notifications-mvp.md`, migration 0035) | Obj 1 + 3 | Cubre objetivo 4-semanas; reusa Part E infra validada; spec ready |
 | 2 | **P2.16 Karina onboarding final** — magic-link + walkthrough completo /admin/{inbox,bookings,extra-guests,airbnb-content} + drawer pre-stay post A4 | Obj 2 | 30-45min Alex+Karina; desbloquea handoff diario |
-| 3 | **P2.20 Vectorize tail unblock** (CC-Data scope, paralelo) | Indirect (calidad bot) | 5min Alex + 2-3h CC-Data background; cierra Data Mining v2 |
-| 4 | **P3-H FAQs curation 50-80** | Obj 1 (medio plazo) | Manual Alex+Karina ~4-6h; alimenta Greeter KB v2; bot responde más, Alex menos |
-| 5 | **P3-A B.7 `/admin/leads` UI** (promovido a P2 conceptual) | Obj 2 | Sin esto, 13k+ rows seedados están ciegos. Karina expansion post-pre-stay |
-| 6 | **P2.10 + P2.11 dedupe** (3 promo bookings + Alex 2 records) | Datapoint quality | Post-thread/115 follow-up. 2h Alex+CC manual |
-| 7 | **P2.7 Rotar PAT + ADMIN_REFRESH_SECRET** | Security hygiene | 15min; "no urge" per Alex pero hacer cuando convenga |
-| 8 | **P2.18 weekend_price RdM + cache expiry** | Revenue protect | 1h; Beds24 pricing inconsistencies |
-| 9 | **P3-F V7 lifecycle decisión + spec** | Pre-req escalabilidad | Necesario antes de scaling bot a in-stay/post-stay |
-| 10 | **P3-G Beds24 Reviews API** | Bot KB enrichment | Reviews enrichment para bot KB + site display |
+| 3 | **P3-H FAQs curation 50-80** | Obj 1 (medio plazo) | Manual Alex+Karina ~4-6h; alimenta Greeter KB v2; bot responde más, Alex menos |
+| 4 | **P3-A B.7 `/admin/leads` UI** (promovido a P2 conceptual) | Obj 2 | Sin esto, 13k+ rows seedados están ciegos. Karina expansion post-pre-stay |
+| 5 | **P2.10 + P2.11 dedupe** (3 promo bookings + Alex 2 records) | Datapoint quality | Post-thread/115 follow-up. 2h Alex+CC manual |
+| 6 | **P2.7 Rotar PAT + ADMIN_REFRESH_SECRET** | Security hygiene | 15min; "no urge" per Alex pero hacer cuando convenga |
+| 7 | **P2.18 weekend_price RdM + cache expiry** | Revenue protect | 1h; Beds24 pricing inconsistencies |
+| 8 | **P3-F V7 lifecycle decisión + spec** | Pre-req escalabilidad | Necesario antes de scaling bot a in-stay/post-stay |
+| 9 | **P3-G Beds24 Reviews API runtime wire** | Bot KB enrichment | Reviews enrichment para bot KB + site display (ingestion ya LIVE) |
+| 10 | **Vectorize wire to Greeter v7+** — consume `rdm-conversations-v2` index (16,969 vectors live) en similarity retrieval | Bot KB enrichment | Future PR; bot funciona sin él, unlocks 11 años WA history retrieval |
 | 11 | **P3-C ideas restantes** en orden valor/effort | Long-term value | I6 Upsell → I9 Drip → I7 Lost-booking → I8 VIP completion → I5 Review automation → I2 QR check-in → I10 Dynamic packaging → I15 Unit economics → I16 Cancellation → I17 Weather → I18 UGC → I19 Casa Chamán launch |
 
 ---
@@ -430,6 +431,7 @@ Este doc es **fuente única de verdad** para el backlog completo. Si en una sesi
 | 2026-05-18 morning | WC | Doc inicial creado |
 | 2026-05-18 evening | WC (DoIt cleanup #1) | Sprint C+E+D+P2 canary validado movió 12 items a LIVE; removidos 11 P2 ya cerrados; agregados P2.20-P2.22; Guest 360 actualizado con row counts reales (13k+ seedados); Pre-stay effort revisado 12-16h → 35-50h con link a spec deep; sequencing §7 realineado a objetivos Alex (workload + Karina + 4 sem) |
 | 2026-05-18 late evening | WC (DoIt cleanup #2 — CC feedback) | thread/115 shipped (PRs #98-100), migration 0034 ya aplicada en prod; spec pre-stay re-numerado migration 0034 → 0035; §4 actualizado con guests resync LIVE + mojibake fix + debug stats; §7 sequencing thread/115 removido (done), P2.10+P2.11 dedupe agregado como follow-up |
+| 2026-05-18 night | WC (Vectorize closure) | CC-Data confirmó index `rdm-conversations-v2` live con 16,969 vectors / 99.99% coverage. Tail cerrado, gap de 2 vectors acceptable. §4 LIVE add Vectorize index. P2.20 marked done. §7 sequencing renumerado (Vectorize row removed) + agregada "Vectorize wire to Greeter v7+" como future-PR item. Spec pre-stay Appendix A actualizado. |
 
 **Próximo paso sugerido**: ahora que pipeline CC actual está en queue (thread/115 + Pre-stay A1-A4), foco es **Pre-stay execution + Karina onboarding en paralelo**. Vectorize tail puede correr en background cuando Alex tenga 5 min para token creation.
 

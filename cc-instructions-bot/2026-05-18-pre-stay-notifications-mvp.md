@@ -585,19 +585,26 @@ CC-Bot ships A1-A4 PRs. After PR A4 merge + Alex deploy:
 
 ---
 
-## Appendix A · Vectorize tail (paralelo, NO en este spec)
+## Appendix A · Vectorize tail (DONE 2026-05-18)
 
-CC-Data scope. Pre-stay no depende. Status:
+**Status**: ✅ Closed. CC-Data session subsecuente al thread/79 stuck-report completó el upsert. Verified state:
 
-| Item | Status |
+| Field | Value |
 |---|---|
-| 17,023 conversation embeddings | Generated, parquet awaiting upsert |
-| Index `rdm-conversations-v2` | NOT created |
-| CF API token scoped (Workers AI Edit + Vectorize Edit) | Alex creates 5 min |
-| `scripts/data-mining/stage_vectorize.py --execute` | 2-3h wall time, ~$0.19 paid tier |
-| Greeter v6 consume index | NOT wired (future PR A6.x) |
+| Index name | `rdm-conversations-v2` |
+| Created | 2026-05-16 13:42 UTC |
+| Vectors live | **16,969** |
+| Dimensions | 1024 |
+| Metric | cosine |
+| Model | `@cf/baai/bge-m3` (multilingual) |
+| ProcessedUpTo | 2026-05-16 17:49:03 UTC |
+| Coverage | 99.99% (gap de 2 vs regen local 2026-05-18, acceptable per Alex "95% ok") |
 
-Handoff doc: `cc-instructions-data/2026-05-16-vectorize-handoff.md`. Pre-req only: Alex scoped token. Run anytime parallel to pre-stay sprint. Closes Data Mining v2 entirely.
+Thread/79 (vectorize stuck) is historically obsolete — el stuck era transitorio, no permanente.
+
+**Wire al Greeter v7+ pendiente como future PR**. Bot funciona sin él. Cuando se wire: re-embed all (snapshot consistency) o cron incremental scheduled. Pre-stay MVP no depende de este index.
+
+Handoff doc: `cc-instructions-data/2026-05-16-vectorize-handoff.md`. Marked closed.
 
 ---
 
