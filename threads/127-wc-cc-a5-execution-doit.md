@@ -6,18 +6,21 @@
 **Type:** DoIt handoff · autonomous
 **Spec base:** thread/121 §3 (already approved by Alex 2026-05-18 night)
 **Mode:** Full autonomous · CC ejecuta sin permiso step-by-step
+**Order:** EJECUTAR DESPUÉS de thread/128 (omnibus pre-A5)
+**Pre-req:** PR #116 (bulk-approve endpoint) deployed in prod via thread/128 Phase B
+**Output thread:** thread/130 (post-A5 report)
 
 ---
 
 ## TLDR
 
-Alex confirmó hoy 2026-05-19: **"A5 execution → todo autonomous"**. Procede con A5 según spec en thread/121 §3.
+Alex confirmó hoy 2026-05-19: **"A5 execution → todo autonomous"**. Procede con A5 según spec en thread/121 §3 **DESPUÉS de thread/128 esté completo**.
 
 **Lo que CC hace:**
-1. Bulk approve cells con content sin `{open:}` comments
+1. Bulk approve cells con content sin `{open:}` comments (vía endpoint deployed en thread/128)
 2. Chrome MCP write-back a 8 listings AirBnB live (4 props × 2 langs)
 3. Verify all cells reach `deployed_at !== null`
-4. Post thread/128 con report final
+4. Post thread/130 con report final
 
 **Time budget:** 6-10h autonomous. Si excedes 1.5x (15h), stop + reporta.
 
@@ -60,7 +63,7 @@ Alex screenshot 2026-05-18 night mostró:
 4. Per-cell write-back: parse content via `stripComments()`, navigate to URL per field, save in AirBnB, verify "Saved" indicator, call `PUT /api/admin/airbnb-content/[property]/[lang]/[field]/deploy-confirmed`
 5. Skip cells with `{open:}` syntax — log to report
 6. Audit log entries `kind='airbnb_write_back'` per cell (existing infra)
-7. Post thread/128 with full report
+7. Post thread/130 with full report
 
 ### ❌ NO — out of scope
 
@@ -80,7 +83,7 @@ Si encuentras algo fuera de scope: log to report, NO fixees inline.
 | Decisión | Valor confirmed by Alex 2026-05-18 night + 2026-05-19 |
 |---|---|
 | EN drafts at Alex 0% review | "Todo ciego" — Alex acepta el riesgo. CC procede sin review previo. |
-| `{open:}` comments | Skip cell. Report en thread/128. Alex resuelve post-A5. |
+| `{open:}` comments | Skip cell. Report en thread/130. Alex resuelve post-A5. |
 | Order | Sequential. RdM ES first (lowest risk, 100% Alex review). Huerta EN last. |
 | Pause durante run | No. Solo coordinar con Karina (don't touch during A5). |
 | Rate limit AirBnB | 2-3 seg delay entre saves. Total ~3-5 min extra. |
@@ -143,7 +146,7 @@ for each approved cell in deploy queue (sorted by spec order):
 
 ### Step 3 — Report
 
-Post thread/128 con:
+Post thread/130 con:
 - Cells approved count
 - Cells skipped (open comments) — lista
 - Cells deployed count
@@ -176,7 +179,7 @@ Post thread/128 con:
 - [ ] All approved cells reach `deployed_at !== null`
 - [ ] All cells have `airbnb_snapshot` populated
 - [ ] Audit log: `airbnb_write_back` entries per cell
-- [ ] thread/128 posted with full report
+- [ ] thread/130 posted with full report
 - [ ] No Karina-mid-edit conflicts logged
 - [ ] Spot-check sugerencia para Alex (1 listing per property)
 
@@ -192,7 +195,7 @@ Reporta a Alex (Telegram or thread comment) en estos momentos:
 | RdM ES complete (first batch, validate URL_PER_FIELD works) | "RdM ES done. URL mapping validated. Continuing." |
 | Halfway (50% cells deployed) | "A5 50% done. X errors so far. Continuing." |
 | Halt condition triggered (timeout, AirBnB error, auth fail) | "A5 halted at cell {N}. Reason: {X}. Need: {Y}." |
-| Complete | Thread/128 posted + Telegram "A5 done. Report in thread/128." |
+| Complete | Thread/130 posted + Telegram "A5 done. Report in thread/130." |
 
 **No reportes en cada cell.** Solo milestones above.
 
@@ -217,7 +220,7 @@ Ejecuta A5 según spec §3.2-§3.5 sequential.
 
 Time budget: 8-12h. Excedo 1.5x (18h) = stop + Telegram.
 Comunicación: solo milestones del §8.
-Output: thread/128 con report final.
+Output: thread/130 con report final.
 ```
 
 ---
@@ -231,12 +234,12 @@ Output: thread/128 con report final.
 
 ---
 
-## 11 · Post-A5 actions (no en este DoIt, mencionar en thread/128)
+## 11 · Post-A5 actions (no en este DoIt, mencionar en thread/130)
 
 | Item | Quién |
 |---|---|
 | Spot check 4 listings (1 per property) live en AirBnB | Alex, 5 min |
-| Review thread/128 report | Alex |
+| Review thread/130 report | Alex |
 | Decidir si content_editor model needs cleanup (PR #121 bypass) | Alex + WC futuro |
 | Resolver cells skipped por `{open:}` | Alex |
 
