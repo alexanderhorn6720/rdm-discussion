@@ -55,9 +55,21 @@
 - **CC** (Claude Code): RO default. Escribe sólo `feedback/` subfolder cuando Alex/WC lo pide explícito. No PRs autónomos a este repo desde DoIt mode.
 - **No commits con secrets, PII, tokens** (igual que los otros 2 repos).
 
+## F. RECENT DECISIONS
+
+- **F.4** (2026-05-20): audit-2026-Q2 cycle triggered. Sealed in `reports/audit-2026-Q2/README.md`.
+- **F.5** (2026-05-21): **audit-2026-Q2 closure**. Synthesis 04- + ADR-003 (Accepted by Alex thread/155) + Wave 1 spec authored by WC-Platform + Wave 1 PRs T1-T7 merged by CC. Net outcomes:
+  - **Plan stance locked**: stay Workers Free until 2 of 3 trigger conditions hit (ADR-003 §2.3).
+  - **Cron strategy codified**: ADR-003 §2.2 decision matrix (native ≤30s drift / GH Actions external ≥5min drift).
+  - **F2 spec reduced scope**: 6-9h → 3-5h. Logpush dropped (Paid-gated), heartbeats reuse `bot_config` table (no migration 0042 needed).
+  - **ADR-001 §6 amended** with 8 new anti-patterns (PR #2 in this repo).
+  - **`foundations/00-platform-constraints.md`** created as single source of truth for platform capabilities (links to ADR-003 §2.1).
+  - 5 doc-drift propagations corrected (foundations/README, ADR-002 §Consequences, audit-2026-Q2 §0.1, threads/146 §F1.Q1 amendment, threads/149-followup §A amendment).
+- **Next**: F2 ship reduced scope (3-5h), then M1 brain session.
+
 ## E. LAST UPDATED + UPDATE PROTOCOL
 
-- Fecha generación: 2026-05-19
+- Fecha generación: 2026-05-19. Revised 2026-05-21 by CC to add §F.5 audit-2026-Q2 closure entry per Wave 1 T8.
 - Por: CC vía DoIt thread/143 (excepción autorizada al boundary CC=RO: snapshot informativo, NO modifica contenido de rdm-platform)
 - Próxima refresh: cuando se mergee ADR-002, F1/F2/F3 spec final, o se complete primer module spec deep.
 - **Update protocol:** WC actualiza este archivo cuando agrega ADR, foundation seal, o module spec deep. Alex actualiza §C priorización.
