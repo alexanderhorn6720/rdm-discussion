@@ -44,7 +44,12 @@
 
 ## D. POST-MERGE PENDING
 
-- D1 migrations totales: 39 archivos (`0001` → `0039_audit_log.sql`). Aplicación a prod NO verificada en este snapshot — verificar con `wrangler d1 migrations list rincon --remote`. Las recientes (`0035_pre_stay_columns` → `0039_audit_log`) corresponden a PRs mergeados últimos 7d, asumir aplicadas pero CONFIRMAR.
+- **Wave 1 audit-2026-Q2 fixes (T1-T6 merged 2026-05-21)** — manual deploy actions remaining:
+  - **T2**: `npx wrangler d1 migrations apply rincon --remote` (renames 0039 → 0040 for `rules_link_clicks.sql` to break duplicate-prefix collision with `0039_audit_log.sql`). Both tables created with `IF NOT EXISTS` so reapply is safe regardless of prior collision state.
+  - **T4**: register Telegram webhook ONCE for `/internal/tg-callback`: `curl -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/setWebhook" -d "url=https://bot.rincondelmar.club/internal/tg-callback" -d "allowed_updates=[\"callback_query\"]"` then verify with `getWebhookInfo`. End-to-end: trigger fake handoff → tap button → query D1 `human_handoff_log` for `human_responded_at`.
+  - **T5**: `wrangler secret put BEDS24_TOKEN --name rincon-pago` (same value as worker-bot) + optional cleanup `wrangler secret delete MAKE_CONFIRM_WEBHOOK_URL --name rincon-pago` + deploy worker-pago. After next `*/30` tick, verify Beds24 control panel for cancelled status on any expired hold.
+  - **All**: `pnpm install` (root) to pick up new devDeps on `@rdm/auth` + `@rdm/mp` (vitest + workers-types).
+- D1 migrations totales: 40 archivos (`0001` → `0040_rules_link_clicks.sql` post-T2 rename). Aplicación a prod NO verificada en este snapshot — verificar con `wrangler d1 migrations list rincon --remote`. Las recientes (`0035_pre_stay_columns` → `0040_rules_link_clicks`) corresponden a PRs mergeados últimos 7d, asumir aplicadas pero CONFIRMAR.
 - Workers con cambios local sin deploy: ninguno detectado (todas las branches activas son post-merge sin pendientes nuevos), excepto las dos PRs open (#114, #130) que esperan deploy post-merge.
 - Cron jobs activos (`apps/worker-pago/wrangler.toml`):
   - `*/30 * * * *` — expire holds
@@ -74,6 +79,17 @@
 - **WC NO implementa código en `rdm-bot` ni `rdm-platform`** (2026-05-19 Alex correction). WC = specs + threads + reviews + brain mode. CC reta + implementa. WC sí commits a `rdm-discussion` (threads, specs, ADRs, reviews).
 
 ## F. ÚLTIMA SEMANA SHIPPED (top 20 main, últimos 7d)
+
+### Wave 1 audit-2026-Q2 fixes — merged 2026-05-21 (per ADR-003 + thread/155)
+
+- PR #144 test(wave-1): T6 backfill tests for packages/auth + packages/mp — 25 tests (`@rdm/auth` 7, `@rdm/mp` 18). pnpm-lock + tsconfig fixes.
+- PR #143 chore(wave-1): T5 Make.com sunset in worker-pago expireHolds — replaced dead `MAKE_CONFIRM_WEBHOOK_URL` call with direct `beds24-release.ts` PATCH; needs `BEDS24_TOKEN` secret put.
+- PR #142 feat(wave-1): T4 Telegram inline `[✅ Respondí]` button + `/internal/tg-callback` endpoint — fixes 91% reminder-spam; needs setWebhook one-time.
+- PR #141 docs(wave-1): T3 total_mxn canonical = pesos per ADR-003 §2.6 — spec/04-data-model.md comment fix.
+- PR #140 chore(wave-1): T2 renumber duplicate migration 0039 → 0040 — break `audit_log` / `rules_link_clicks` prefix collision; needs migrations apply.
+- PR #139 chore(wave-1): T1 doc drift fix on Free plan capabilities (bot side) — worker-bot wrangler.toml + index.ts JSDoc + spec/07.
+
+### Pre-Wave 1 (continued)
 
 - `0fc4720` test(admin-roles): align with PR #129 priority order (#134)
 - `bbb018f` fix(reglas-pdf): sanitize variation selectors + emoji ranges (#133) — duplicate of #132, did NOT resolve prod 500
@@ -113,7 +129,7 @@ Derivado de threads con type=question/spec sin result thread en últimas 2 seman
 
 ## H. LAST UPDATED + UPDATE PROTOCOL
 
-- Fecha generación: 2026-05-19 (revised 2026-05-19 late evening by WC-Impl to add: analytics finding to §A + §G, PDF removal pending to §D + §G, WC boundary anti-pattern to §E, PR #131 + PR #132/#133/#134 to §F, chore/remove-reglas-pdf + fix/reglas-pdf-emoji-sanitize branches to §C, last commit SHA updated to `0fc4720`)
+- Fecha generación: 2026-05-19 (revised 2026-05-19 late evening by WC-Impl to add: analytics finding to §A + §G, PDF removal pending to §D + §G, WC boundary anti-pattern to §E, PR #131 + PR #132/#133/#134 to §F, chore/remove-reglas-pdf + fix/reglas-pdf-emoji-sanitize branches to §C, last commit SHA updated to `0fc4720`). Revised 2026-05-21 by CC to note Wave 1 audit-fixes closure (T1-T6 PRs #139-#144) in §F + deploy actions in §D.
 - Por: CC vía DoIt thread/143 (branch `chore/state-system-and-audit` en rdm-discussion); 2026-05-19 PM revisions by WC-Impl direct-to-main per role boundary (rdm-discussion = WC territory).
 - Próxima refresh: manual cuando cambien items en §B/§C/§D
 - **Update protocol:** tu PR toca este archivo si afecta lo que afirma (worker deploy, branch nueva activa, cron added, migration applied, anti-pattern nuevo).
