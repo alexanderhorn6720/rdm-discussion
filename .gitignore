@@ -1,0 +1,6 @@
+# Local worktrees used by parallel CC sessions (created via `git worktree add`).
+# These hold transient branches and should never appear as tracked files in main.
+.worktree-*/
+
+# Audit scratch space from META archaeology pipeline (thread/176)
+reports/.audit-scratch/

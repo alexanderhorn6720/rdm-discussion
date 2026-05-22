@@ -53,6 +53,33 @@ Path convention: `cc-instructions-{workstream}/YYYY-MM-DD-{name}.md`
 - Branches CC-Bot: `feat/greeter-v5-*`, `feat/canary-*`, etc
 - Branches CC-Data: `feat/data-*`, etc
 
+### Atomic thread claim
+
+Always claim a new thread number via the script — never hand-pick a number:
+
+```bash
+bash scripts/new-thread.sh <author> <topic-slug>
+# Example:
+bash scripts/new-thread.sh CC-Bot kv-bug-fix-report
+```
+
+The script combines a local lock (flock or mkdir fallback) with
+fetch+rebase+push retry, eliminating the collision class documented in
+thread/172 (27/204 threads = 13% had duplicates before this). It:
+
+- Validates `<author>` against the enum (WC, WC-Platform, WC-Impl, CC,
+  CC-Bot, CC-Data, CC-Pago, CC-Web, Alex)
+- Validates `<topic-slug>` as lowercase-kebab-case, min 5 chars
+- Requires a clean working tree on `main`
+- Pushes a stub directly to `origin main` (threads bypass PR review)
+- Prints the new relative path to stdout (so callers can read it)
+
+Exit codes: `0` success, `1` bad args/state, `2` lock timeout, `3` push
+failed after 5 attempts.
+
+Tests live in `scripts/tests/test_new_thread.sh` and run on every PR
+that touches `scripts/**` (see `.github/workflows/scripts-tests.yml`).
+
 ## Anti-patterns (do NOT do)
 
 - Casa Chamán in Greeter system prompt until renovation complete

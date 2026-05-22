@@ -1,0 +1,22 @@
+name: scripts-tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/scripts-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+
+jobs:
+  shell-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run scripts/tests/test_new_thread.sh
+        run: |
+          chmod +x scripts/new-thread.sh scripts/tests/test_new_thread.sh
+          bash scripts/tests/test_new_thread.sh
