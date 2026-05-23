@@ -2,5 +2,9 @@
 # These hold transient branches and should never appear as tracked files in main.
 .worktree-*/
 
-# Audit scratch space from META archaeology pipeline (thread/176)
-reports/.audit-scratch/
+# Audit scratch space outputs — ignore generated result files but track scripts + README
+reports/.audit-scratch/results/
+
+# PDFs — keep out of git (thread/182 G6). Exceptions in archive/ are OK.
+*.pdf
+!archive/**/*.pdf

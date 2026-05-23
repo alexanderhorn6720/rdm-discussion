@@ -6,25 +6,36 @@
 
 ## A. THREADS ACTIVOS ESTA SEMANA (modificados últimos 7d, top 15)
 
-| #   | Título corto                                       | Esperando            | Desde       |
-|-----|----------------------------------------------------|----------------------|-------------|
-| 143 | state-system + threads audit (este PR)             | CC ejecutando        | 2026-05-19  |
-| 142 | house rules paper trail Phase 1 done (CC→WC)       | WC review            | 2026-05-19  |
-| 141 | house rules paper trail Phase 1 DoIt (WC→CC)       | CC shipped (142)     | 2026-05-19  |
-| 140 | A6 reglas_adicionales complete 8/8 cells           | Alex review PR #130  | 2026-05-19  |
-| 139 | A6 reglas_adicionales deploy 8 cells DoIt          | CC shipped (140)     | 2026-05-19  |
-| 138 | A5 completion 67% deployed, 30% structural skips (untracked local) | Alex decisión next step | 2026-05-19 |
-| 137 | A5 halt: rincondelmar session missing (untracked)  | Alex provision sesión | 2026-05-19  |
-| 136 | A5 halt: stale MCP process (untracked)             | resolved local        | 2026-05-19  |
-| 135 | Beds24 proxy phase 1 complete (PR #127)            | Alex deploy + verify | 2026-05-19  |
-| 134 | Beds24 read-only proxy DoIt spec                   | CC shipped (135)     | 2026-05-19  |
-| 133 | mobile inbox Part E rescue complete (PR #126 merged)| -                   | 2026-05-19  |
-| 132 | Browserbase + AirBnB KPI scraper backlog item      | Alex decisión        | 2026-05-19  |
-| 131 | mobile inbox Part E rescue DoIt (completing 107§5) | CC shipped (133)     | 2026-05-19  |
-| 130 | A5 halt: chrome MCP not attached (untracked)       | resolved local        | 2026-05-19  |
-| 129 | omnibus DoIt report                                | -                    | 2026-05-19  |
+| #   | Título corto                                              | Esperando              | Desde       |
+|-----|-----------------------------------------------------------|------------------------|-------------|
+| 182 | megaspec Wave 1 cleanup + velocity stack (DoIt)           | CC ejecutando          | 2026-05-22  |
+| 181 | budget tier fine-tune T5 hook (absorbed by 182 BT)        | CC absorbed ✅         | 2026-05-22  |
+| 179b| master backlog priorizado con checkboxes (vivo)           | Alex actualización     | 2026-05-22  |
+| 178 | WC brain ultra meta-synthesis + Wave 1 spec base          | WC done → 182          | 2026-05-22  |
+| 177 | CC-Bot doit-176 meta-archaeology report                   | -                      | 2026-05-22  |
+| 176 | meta-archaeology audit DoIt                               | CC shipped ✅          | 2026-05-22  |
+| 175 | cost telemetry + budget alerts + hooks T1-T5              | CC shipped ✅          | 2026-05-22  |
+| 143 | state-system + threads audit                              | CC shipped             | 2026-05-19  |
+| 142 | house rules paper trail Phase 1 done (CC→WC)              | WC review              | 2026-05-19  |
+| 140 | A6 reglas_adicionales complete 8/8 cells                  | Alex review PR #130    | 2026-05-19  |
+| 138 | A5 completion 67% deployed, 30% structural skips          | Alex decisión next step| 2026-05-19  |
+| 135 | Beds24 proxy phase 1 complete (PR #127)                   | Alex deploy + verify   | 2026-05-19  |
+| 132 | Browserbase + AirBnB KPI scraper backlog item             | Alex decisión          | 2026-05-19  |
+| 130 | A5 halt: chrome MCP not attached (untracked)              | resolved local         | 2026-05-19  |
+| 129 | omnibus DoIt report                                       | -                      | 2026-05-19  |
 
-> **Nota:** ver `reports/threads-audit-2026-05-19.md` para tabla completa de 159 threads.
+> **Nota:** ver `reports/2026-05-22-META-A1-threads-inventory.md` para tabla completa de 182+ threads.
+
+## A2. WAVE 1 STATUS (thread/182, en progreso)
+
+| Sección | Estado | Notas |
+|---|---|---|
+| BT — budget tier warning-only | ✅ committed | DAILY_COST_BUDGET_USD 5→100, hook 2.0× warn-only |
+| VL — velocity stack Sonnet | ✅ committed | bot settings.json OK, platform PR#3 draft |
+| WV — Wave 1 cleanup | 🔄 in progress | STATE.md ✓, CLAUDE.md/decisions/specs/branches pendientes |
+| MR — misc cleanup (179 superseded) | ✅ done | thread/179 frontmatter: superseded_by:180 |
+| AU — audit-as-code convention | ⏳ pending | — |
+| G6 — PDF removal | ⏳ pending | — |
 
 ## B. SPECS PENDING SHIP (type=spec sin result thread)
 
@@ -80,7 +91,7 @@
 
 ## G. LAST UPDATED + UPDATE PROTOCOL
 
-- Last updated: 2026-05-20 (promoted to root via thread/145 DoIt; content tweak C from thread/145 §"PARTE 1" applied in this same PR per thread/146 amplification — see commit `chore(state): apply thread/145 tweaks C/E`).
-- Por: CC vía DoIt thread/145 + thread/146 amplification (branch `chore/promote-state-to-root`).
+- Last updated: 2026-05-23 (thread/182 WV-A: threads §A actualizados, Wave 1 status §A2 agregado).
+- Por: CC-Bot vía DoIt thread/182 (branch `feat/megaspec-182-wave1-cleanup`).
 - Próxima refresh: cuando se cierre/abra spec, o se agreguen ≥3 threads nuevos.
 - **Update protocol:** todo PR a este repo toca §A si modifica threads/, toca §E si afecta decisión pendiente, toca §C si agrega ADR.
