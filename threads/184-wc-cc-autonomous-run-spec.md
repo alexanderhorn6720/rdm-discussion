@@ -4,6 +4,7 @@ author: wc
 type: spec
 mode: DoIt
 created: 2026-05-23
+amended: 2026-05-23 (Max plan reframe — § marked *)
 supersedes: null
 superseded_by: null
 related: [148, 174, 178, 180, 182, 183]
@@ -20,6 +21,10 @@ Objetivo: drainage máximo del pipeline sin intervención Alex usando
 Arquitectura A (1 judge) + multi-CC paralelo (3 worktrees concurrent).
 
 Voto Alex 2026-05-23: GO Escenario 2.
+
+**Plan Claude activo: Max.** Tokens incluidos. Hard stops reales son
+5h rate-limit block y weekly cap reset. ccusage en USD es vanity
+metric en este contexto — usar % weekly cap como threshold real.
 
 Items que NO se tocan en este run (requieren Alex):
 - G7 thread/148 voto sub-items
@@ -58,7 +63,8 @@ ACCIÓN: <qué debe hacer CC ahora>
 # Anti-patterns RDM (FAIL automático si detectas)
 
 PRODUCTO:
-- LLM money decision autónoma (pricing, refunds, billing)
+- LLM money decision autónoma (pricing, refunds, billing reales — NO
+  confundir con costo de tokens LLM bajo Max plan que es vanity)
 - Casa Chamán surfaced en Greeter/guest channel (roomId 679176, deferred Q3 2026)
 - Pet fee escrito "/noche" en cualquier output (correcto: $300 MXN por mascota por estancia, max 2)
 - Beds24 sync mode = Everything (correcto: Prices & Availability only, multiplier 1.25, 365-day horizon)
@@ -91,18 +97,19 @@ WORKFLOW:
 
 # Triggers ESCALATE (commit a threads/escalations/YYYY-MM-DD-NN-topic.md)
 
-- Decisión que afecta money/cost > $5 USD/mes ongoing
+- Operational money RDM real > $5 USD/mes ongoing (Browserbase,
+  APIs externas, NO tokens LLM bajo Max)
 - Scope change vs spec original (item en spec que ya no aplica, o nuevo no listado)
 - Conflicto entre dos anti-patterns
 - Production deploy fuera ventana segura
 - Operación irreversible con >10 items afectados
-- Cost LLM acumulado sesión > $15
+- 5h rate-limit block alcanzado durante task (CC sin sesiones hasta reset)
+- ccusage reporta >70% weekly cap consumido en el run (warning)
 - CC reporta halt >30 min sin auto-recovery clara
 - Voto A/B/C requerido (decisión arquitectural)
 
 # Formato escalation file
 
-```
 threads/escalations/YYYY-MM-DD-NN-{topic-kebab}.md
 
 # Escalation NN — {topic}
@@ -115,8 +122,7 @@ threads/escalations/YYYY-MM-DD-NN-{topic-kebab}.md
 - C) ...
 ## Voto WC preliminar
 ## Bloqueador downstream
-## Costo si esperamos
-```
+## Costo si esperamos (en tiempo Alex / weekly cap, NO USD si es LLM)
 
 # Triggers PASS automático
 
@@ -161,7 +167,7 @@ Halt conditions A:
 
 Path local Alex: `c:/dev/rdm/dev/discussion/.claude/worktrees/wt-b-specs/`
 Branch base: `main` (rdm-discussion)
-Modelo CC: Opus 4.7 (specs requieren brain mode)
+Modelo CC: Opus 4.7 (specs requieren brain mode — Opus consume cap más rápido, monitorear)
 Judge: invoca `wc-judge` pre-PR (drafts no requieren judge en cada commit)
 
 ### Tasks
@@ -182,6 +188,7 @@ Restricciones B:
 Halt conditions B:
 - Conflicto entre dos drafts (B4 y B5 referencian F2 que aún no ship) → asume F2 reservation de B1, no F2 ship
 - Halt >30 min → reporta y pasa al siguiente
+- Si ccusage muestra Opus quemando weekly cap rápido (>40% antes B3): bajar B4/B5 a Sonnet con prompt "expand spec, no brain analysis"
 
 ---
 
@@ -190,14 +197,14 @@ Halt conditions B:
 Path local Alex: `c:/dev/rdm/dev/discussion/.claude/worktrees/wt-c-standby/`
 Branch base: `main` (rdm-discussion)
 Modelo CC: Sonnet 4.6
-Activación: solo si A o B terminan antes y queda budget LLM
+Activación: solo si A o B terminan antes y queda capacidad weekly cap
 
 ### Tasks (en orden si activado)
 
 | T | Task | Esfuerzo | Output |
 |---|---|---|---|
 | C1 | Wave 2 backlog regen (item 9.3). Refresh thread/179b post-184 lands. Update tier 0/2/3 estados. | 1h | PR rdm-discussion con 179b actualizado |
-| C2 | Cost analysis breve post-ccusage (item 4.4). Si fecha ≥ 2026-05-29: compare $185 baseline vs 7-day post velocity stack ship. | 1h | thread con cost analysis |
+| C2 | Cost analysis breve post-ccusage (item 4.4). Si fecha ≥ 2026-05-29: framing % weekly cap consumed pre/post velocity stack, NO comparación USD. | 1h | thread con análisis |
 | C3 | A5 AirBnB archival prep (item 5.1). Audit branch `feat/a5-airbnb-bulk-approve-writeback` + threads 130/136/137/138. Redactar propuesta archive a `archive/a5-airbnb/`. NO ejecuta archive (espera Alex). | 1h | thread con archive proposal |
 
 ---
@@ -234,8 +241,8 @@ Numbering NN secuencial por día. Atomic claim via script `new-thread.sh` adapta
 ## Bloqueador downstream
 {qué tasks dependen}
 
-## Si esperamos vs ejecutamos
-{costo de cada path}
+## Costo si esperamos vs ejecutamos
+{tiempo Alex / weekly cap impact, NO USD para LLM}
 ```
 
 ### Triggers escalation (judge decide ESCALATE)
@@ -248,14 +255,17 @@ CC commitea escalation file, pasa al siguiente task del worktree, NO bloquea ses
 
 ---
 
-## §6. Guardrails no-negociables
+## §6. Guardrails no-negociables (* Max plan reframe)
 
 ### Ejecución autónoma
 
 | Guardrail | Valor |
 |---|---|
 | Halt sub-tarea | >30 min stuck |
-| Cost LLM por worktree | warning $15, halt $25 |
+| Weekly cap warning | ccusage reporta >50% consumido del run |
+| Weekly cap halt suave | ccusage reporta >80% consumido — pausa hasta reset |
+| 5h block hit | Espera reset automático, continúa (no halt) |
+| 5h block hit ≥3 veces mismo worktree | Halt worktree, reporta |
 | Total worktrees concurrent | max 3 |
 | Atomic claim threads | obligatorio (script existente) |
 | Self-review hook | ON (instalado thread/175 T4) |
@@ -271,6 +281,7 @@ CC commitea escalation file, pasa al siguiente task del worktree, NO bloquea ses
 - Production deploy (Workers, Pages, secrets)
 - Modificar rdm-platform sin escalation previa
 - WC redactar código en `apps/` o `packages/`
+- Comprar capacity extra Anthropic sin Alex voto explícito
 
 ### Operaciones permitidas
 
@@ -280,15 +291,16 @@ CC commitea escalation file, pasa al siguiente task del worktree, NO bloquea ses
 - Crear PRs (NO merge)
 - Tests local Vitest
 - Wrangler dry-run (NO deploy)
+- Esperar reset 5h block cuando topa (no penalización)
 
 ---
 
-## §7. Definition of done
+## §7. Definition of done (* Max plan reframe)
 
 Run completo cuando se cumpla cualquiera:
 
 1. Las 4 tasks A + 5 tasks B + (opcional) 3 tasks C completadas
-2. Cost LLM acumulado total > $40 (halt suave)
+2. ccusage reporta >80% weekly cap consumido (halt suave hasta reset)
 3. 7 días calendario desde inicio (2026-05-30)
 4. Alex regresa y dice "stop"
 
@@ -298,7 +310,8 @@ Run completo cuando se cumpla cualquiera:
 - M escalations en `threads/escalations/`
 - thread/188 (CC-Bot) o thread/189 (CC-Discussion) con report final:
   - Tasks completed / partial / halted
-  - Cost LLM total por worktree
+  - ccusage delta por worktree (% del weekly cap, informativo)
+  - Veces que topó 5h block
   - Lessons learned (para v4 DoIt template si aplica)
   - Backlog drift detectado (items que cambiaron estado)
 
@@ -310,7 +323,7 @@ Inbox priorizado para Alex (en orden ataque):
 
 1. **Escalations** — leer primero, son decisiones que detuvieron progreso
 2. **PRs ready-review** — batch review mobile-friendly
-3. **Cost report** — verificar si run quemó budget esperado
+3. **Capacity report** — ccusage % weekly cap consumido + 5h block hits
 4. **Tier 0 original** — G7 voto thread/148 sigue siendo critical-path
 5. **Drift report** — qué del doc rdm-pipeline-open-state-v2.txt cambió
 
@@ -341,15 +354,19 @@ git worktree add .claude/worktrees/wt-c-standby -b feat/run-184-wt-c-standby
 # 3. Copiar wc-judge.md a cada worktree
 # (CC primera sesión hace esto automático leyendo §1 del thread)
 
-# 4. Lanzar 3 sesiones CC en terminales separados
+# 4. Snapshot ccusage baseline (para medir delta del run)
+ccusage --week  # capturar % weekly cap consumido AHORA
+
+# 5. Lanzar sesiones CC en terminales separados
 # Terminal 1: cd .../wt-a-tactical ; claude
 # Terminal 2: cd .../wt-b-specs    ; claude --model opus
 # Terminal 3: standby (lanzar solo si A o B terminan antes)
 
-# 5. En cada sesión CC, prompt inicial:
+# 6. En cada sesión CC, prompt inicial:
 # "Lee threads/184-wc-cc-autonomous-run-spec.md en rdm-discussion.
 #  Estás en worktree {A|B|C}. Ejecuta tasks de §{2|3|4} en orden.
-#  Invoca wc-judge pre-commit y pre-PR. Escala según §5."
+#  Invoca wc-judge pre-commit y pre-PR. Escala según §5.
+#  Reporta ccusage --week cada 2h en log local del worktree."
 ```
 
 Total tiempo Alex pre-flight: ~10 min.
@@ -364,10 +381,12 @@ Total tiempo Alex pre-flight: ~10 min.
 - NO confiar en "tests pass" sin self-review diff
 - NO ejecutar B4 (F1 spec) o B5 (F3 spec) antes que B1 (F2 remap) commit
   → B ejecuta tasks en orden B1 → B2 → B3 → B4 → B5
+- NO comprar extra capacity Anthropic en caliente — si topas weekly cap,
+  pausa hasta reset
 
 ---
 
-## §11. Métricas de calibración (para review post-run)
+## §11. Métricas de calibración (* Max plan reframe)
 
 Capturar para decidir si Escenario 2 vale segundo round:
 
@@ -375,7 +394,8 @@ Capturar para decidir si Escenario 2 vale segundo round:
 |---|---|---|
 | % tasks completed sin escalation | tasks_pass / total_tasks | ≥ 70% |
 | % escalations acertadas (Alex acepta voto WC) | alex_accept_wc_vote / total_escalations | ≥ 60% |
-| Cost LLM real vs estimate | actual_usd / 40_estimate | ≤ 1.5× |
+| Weekly cap consumido por el run | ccusage_delta / weekly_window | ≤ 60% (deja headroom) |
+| Veces 5h block topado | count | informativo |
 | Tiempo Alex retorno vs baseline | hours_to_drain / 8h_baseline | ≤ 0.5× |
 | PRs auto-mergeable (judge PASS clean) | clean_prs / total_prs | ≥ 50% |
 
@@ -383,11 +403,12 @@ Reporte de métricas obligatorio en thread/188.
 
 ---
 
-## §12. Si run falla catastrófico
+## §12. Si run falla catastrófico (* Max plan reframe)
 
 Halt total si:
 - 2+ worktrees reportan halt simultaneous
-- Cost LLM > $60 acumulado (1.5× del 40 cap)
+- ccusage muestra >90% weekly cap consumido (CC inoperante hasta reset)
+- 5h block topado >2 veces en mismo worktree (productividad real cero)
 - Production breakage detected (cualquier deploy accidental)
 - Judge devuelve FAIL en >3 commits consecutivos del mismo worktree
 
