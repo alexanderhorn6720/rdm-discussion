@@ -1,6 +1,6 @@
 # 03 — Pricing agent: simplified port to admin
 
-**Status**: Reescrita 2026-05-11 v3 post-decisión Alex on-demand + apply-all-batch.
+**Status**: DEFERRED — spec aprobada (v3 2026-05-11), implementación pendiente post-foundations (M1 item en thread/179b §2 master backlog). No ha iniciado implementación en `rdm-bot`. Revisitar post-F2 observability + post-F1 events bus según thread/178 Wave plan. Última revisión: 2026-05-23 (thread/182 WV-C).
 
 **Decisión**: Pricing pipeline migra a `apps/admin` (no app separada) como **tab "Pricing"** con UX simplificada:
 

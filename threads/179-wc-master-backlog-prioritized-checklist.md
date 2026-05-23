@@ -8,7 +8,10 @@ status: moved-to-179b
 moved_to: threads/179b-wc-master-backlog-prioritized-checklist.md
 moved_reason: collision resolution with 179-cc-bot-doit-175-completion-report.md (claimed concurrently pre-T1 ship)
 moved_date: 2026-05-22
+superseded_by: 180
 ---
+
+> **SUPERSEDED**: thread/180 contiene estado post-merge real. Ver también thread/179b para master backlog vivo actualizado.
 
 # Master Backlog — MOVED to thread/179b
 

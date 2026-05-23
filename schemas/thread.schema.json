@@ -3,6 +3,8 @@
   "$id": "https://github.com/alexanderhorn6720/rdm-discussion/schemas/thread.schema.json",
   "title": "rdm-discussion thread frontmatter",
   "description": "Frontmatter shape enforced by scripts/validate-threads.mjs. Applies to threads >= 175 (grandfathering). Older threads are reported as advisories only.",
+  "soft_mode": true,
+  "soft_mode_expires": "2026-05-29",
   "type": "object",
   "required": ["thread", "author", "date", "topic", "mode", "status"],
   "properties": {
@@ -67,6 +69,17 @@
     },
     "deliverable": {
       "type": "string"
+    },
+    "daily_cost_budget_usd": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 500,
+      "description": "Per-thread budget override for T5 cost-limit hook. If absent, env DAILY_COST_BUDGET_USD applies. Recommended tiers: 20 (exploration), 100 (doit_normal), 200 (doit_multi_cc). Post Max plan: warning-only, no hard halt."
+    },
+    "halt_global_budget_usd": {
+      "type": ["number", "null"],
+      "minimum": 1,
+      "description": "Absolute spend ceiling for this thread execution. CC must halt if exceeded, regardless of plan mode."
     }
   },
   "additionalProperties": true
