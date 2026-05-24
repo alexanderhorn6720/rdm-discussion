@@ -1,6 +1,12 @@
+---
+status: accepted
+accepted_date: 2026-05-23
+chosen_option: A
+---
+
 # 10 — Decisions stores policy
 
-**Status**: Draft (open-for-alex-vote). WC preliminary vote: **Opción A**. Alex final.
+**Status**: **Accepted 2026-05-23 — Opción A** (freeze legacy). Voto Alex registrado en PR #17 comment.
 
 **Decisión**: Definir cuál de los dos almacenes de "decisiones" (`rdm-discussion/decisions/` operacional vs `rdm-platform/decisions/` ADR formal) recibe nuevas entradas y bajo qué scope. Resolver el split-brain documentándolo o consolidando.
 
