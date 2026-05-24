@@ -1,135 +1,158 @@
-# 197 — WC — Backlog: AirBnB bot activation + inquiry auto-response
+---
+thread: 197
+author: wc
+topic: airbnb-flows-backlog
+status: backlog
+mode: capture
+created: 2026-05-24
+related_threads: [196]
+parent_spec: 196
+estimated_effort: TBD (brain deep aparte)
+---
 
-> **Status:** Backlog captured (no execution scheduled)
-> **Purpose:** No olvidar; estos dos flujos importan para conversion + AirBnB ranking pero salen de scope inbox redesign (thread/196)
-> **Owner future:** Brain session aparte cuando inbox redesign esté shipped
+# Thread 197 — AirBnB Flows Backlog (captura para no perder)
+
+## §0. Propósito
+
+Captura items OUT-OF-SCOPE de thread/196 inbox redesign, para no perderlos. Estos requieren brain deep separado antes de ejecutar. Documentado aquí en lugar de archivos sueltos.
 
 ---
 
-## 1. AirBnB bot flujo (hoy passive mode)
+## §A. Diseñar flujo bot AirBnB activo
 
-### 1.1 Estado actual
+### Estado actual
+Bot está en **passive mode** en canal AirBnB. Escucha mensajes, NO responde.
 
-- Bot RdM **escucha** mensajes AirBnB pero **NO responde** (modo passive)
-- Razón: AirBnB tiene mecanicas distintas a WhatsApp (review impact público, ranking response time, traducción auto)
-- Riesgo de errar es mayor que en WhatsApp privado
+### Por qué passive mode
+- Conversación AirBnB es pública (impacta reviews)
+- Respuestas erróneas = ranking down
+- Sin validación de tono adecuado para canal formal
 
-### 1.2 Diferencias clave vs WhatsApp
+### Diferencias clave AirBnB vs WhatsApp
 
-| Dimensión | WhatsApp | AirBnB |
+| Aspecto | WhatsApp | AirBnB |
 |---|---|---|
-| Audiencia | 1-1 privado | Pública (afecta review/ranking) |
-| Idiomas | ES default | Cualquier idioma, AirBnB traduce auto |
-| Response time impact | Reputación interna | **Factor ranking AirBnB** (<1h ideal) |
-| Errores | Recuperable | Visible permanentemente en thread |
-| Inquiry vs booking | No aplica | Inquiry → booking flow distinto |
-| Mensaje extension | Sin límite | 1000 char limit + foto attachments |
+| Privacidad | Privada | Pública, leídas por AirBnB |
+| Impacto review | Indirecto | Directo (response rate, response time) |
+| Response time | Sin métrica platform | Ranking factor crítico <1h |
+| Traducción | Manual | Automática (Kari ES → guest cualquier idioma) |
+| Tono | Cálido, casual OK | Más formal recomendado |
+| Multimedia | Audios, stickers OK | Texto principalmente |
+| Booking context | Sin contexto inherente | Booking ID inherent |
 
-### 1.3 Decisiones pendientes (brain deep futuro)
+### Preguntas a responder en brain deep
 
-| # | Pregunta |
-|---|---|
-| Q1 | ¿Qué intents activamos primero? (FAQ, precio simple, reglas) |
-| Q2 | ¿Escalation rules más conservadoras que WhatsApp? |
-| Q3 | ¿Templates verificados Alex/Karina antes de cada send? |
-| Q4 | ¿Plan canary 0% → 10% → ... como en greeter WhatsApp? |
-| Q5 | ¿Cómo manejar idiomas? (Kari responde ES, AirBnB traduce; ¿bot escribe ES y trust traducción?) |
-| Q6 | ¿Cómo evitar duplicar Kari? (si Kari ya está respondiendo, bot debe pausarse) |
-| Q7 | ¿Metrics review impact pre/post? |
+1. **¿Cuándo activar bot?** Inquiry pre-booking? Post-booking? In-stay?
+2. **¿Qué tipos de mensaje?** Confirmación reserva, info logística, FAQs, escalation explicit
+3. **¿Cuándo NO activar?** Quejas in-stay, eventos especiales, precios negociables
+4. **¿Cómo testear sin impacto producción?** Shadow mode logging vs respuesta real
+5. **¿Greeter v5 reusable?** Adaptar prompt o nuevo
+6. **¿Métricas success?** Response time avg, conversion inquiry→booking, escalation rate
+7. **¿Fallback si bot duda?** Auto-escalate Kari vs respuesta genérica safe
 
-### 1.4 Effort estimate (rough)
+### Pre-requisitos antes de implementar
+- Inbox redesign shipped (thread/196) — Kari ve qué pasa
+- F2 observability (thread/195 postponed) — métricas bot decisions
+- Decision: ¿tono más formal? Karina training data específica AirBnB
 
-- Spec brain deep: 1-2h
-- Implementación: 12-20h CC
-- Canary scaling: 2 semanas observación
+### Estimación esfuerzo
+- Brain deep: 1h+
+- Spec + impl: 12-20h CC
+- Testing shadow mode: 1-2 semanas observación
+- Activación gradual canary: 0% → 10% → 50% → 100%
 
 ---
 
-## 2. AirBnB inquiry auto-response (<1min)
+## §B. Flujo AirBnB inquiries respuesta inmediata <1min
 
-### 2.1 Pain
+### Por qué crítico
+- **Response time <1h** es ranking factor AirBnB
+- **<5 min** es benchmark superhost top performers
+- **<1 min** automático = competitive advantage real
 
-AirBnB ranking de listings depende de **response time** a inquiries. Hoy:
+### Estado actual
+Kari responde manualmente. Atrasos = ranking down. Si Kari duerme/ocupada, response time = horas.
 
-- Inquiry llega a Kari (vía Beds24 notify webhook)
-- Kari responde manual, a veces toma horas
-- Ranking down → menos visibilidad → menos bookings
+### Trigger propuesto
+Webhook Beds24 notify cuando nueva inquiry llega → worker-bot endpoint dispatch → respuesta automática enviada a AirBnB.
 
-Verified anoche: hay 8 AirBnB inquiries sin confirmar en queue actual, varias >21h sin respuesta.
+### Contenido respuesta automática
+**Estructura típica:**
 
-### 2.2 Objetivo
+1. **Saludo personalizado** (nombre guest si disponible)
+2. **Confirm disponibilidad** preliminar (consulta Beds24 calendar)
+3. **Pricing range** (base + extras estimados según pax mencionados)
+4. **Qualifying questions**:
+   - # exacto de personas (adults + kids)
+   - ¿llevan mascotas?
+   - ¿ocasión? (cumpleaños, evento, vacaciones)
+   - ¿servicios? (cocina, traslado)
+5. **Próximos pasos** clear (responder mensaje, link a info propiedad)
 
-Auto-respuesta confirmando disponibilidad + price + qualifying questions, **<1min** después del webhook Beds24.
+### Diferencias vs Greeter actual
+- Greeter responde a leads WhatsApp (texto libre, sin contexto booking)
+- AirBnB inquiry tiene structured data (fechas, propiedad, # guests inicial)
+- Tono más formal
+- Pricing más explícito (AirBnB calculation visible al guest ya)
 
-### 2.3 Componentes técnicos
+### Preguntas a responder en brain quick
 
-| Componente | Status hoy |
-|---|---|
-| Webhook Beds24 notify para inquiry nueva | Por verificar — ¿ya recibimos events tipo `INQUIRY_CREATED`? |
-| Worker handler que dispare auto-response | NO existe |
-| Template inquiry-response (con `{reviewsUrl}` + `{hostName}`) | **Existe** (PR #7 mergeado 2026-05-13, 4 templates Alex listos: RdM, Las Morenas, Combinada, Huerta) |
-| Reply directo a AirBnB | **Funciona** (verificado Alex, Beds24 API) |
-| Cron alerta si respuesta >2min late | NO existe |
+1. **¿Modelo?** Haiku 4.5 (rápido, barato) — confirmado por velocidad
+2. **¿Disponibilidad calc?** Real-time Beds24 query vs cached
+3. **¿Pricing?** Range o exacto (riesgo: bot da precio mal)
+4. **¿Qualifying questions todas o seleccionadas por contexto?**
+5. **¿Idioma?** Detectar guest msg, responder en su idioma (AirBnB no traduce inquiry inicial?)
+6. **¿Webhook Beds24 latency?** ¿Hay forma push o solo polling cada N min?
+7. **¿Casos edge?**
+   - Fechas no disponibles → respuesta alternativa propiedades
+   - Evento grande → escalate Kari
+   - Idioma exótico → fallback inglés
 
-### 2.4 Flujo propuesto
+### Pre-requisitos antes de implementar
+- §A bot AirBnB activo decidido (este es subset)
+- Beds24 webhook inquiry tested
+- Pricing logic confirmed (ADR-001: NO LLM money decisions — pricing viene de Beds24 reglas, NO LLM-generated)
+
+### Estimación esfuerzo
+- Brain quick: 30 min
+- Spec + impl: 8-12h CC
+- Testing: 1 semana monitoring
+- Costo runtime: ~$0.001/inquiry × 50/día = $1.5/mes
+
+---
+
+## §C. Orden de adopción sugerido
 
 ```
-Beds24 webhook INQUIRY_CREATED
-  ↓
-worker-bot determina property + idioma + pax
-  ↓
-selecciona template inquiry-response (4 templates Alex)
-  ↓
-interpola variables (price segun pax, reviewsUrl, hostName, etc)
-  ↓
-envía via Beds24 API
-  ↓
-audit log + métrica response_time
+thread/196 inbox redesign (Wave actual)
+  ↓ ship 2026-05-31
+F2 observability (postponed thread/195)
+  ↓ ship +1 semana
+§B AirBnB inquiries auto-response (más simple, alto valor)
+  ↓ ship +2 semanas
+§A AirBnB bot activo full (más complejo, requiere shadow mode)
+  ↓ ship +6-8 semanas
 ```
 
-### 2.5 Decisiones pendientes
+---
 
-| # | Pregunta |
-|---|---|
-| Q1 | ¿100% auto-response o pre-aprobación Alex/Kari? |
-| Q2 | ¿Qualifying questions agresivas (asking ASAP) o gentle? |
-| Q3 | ¿Price exacto o rango? |
-| Q4 | ¿Si llega fuera de horas, respuesta diferente? |
-| Q5 | ¿Cómo manejar inquiries que ya tienen mensaje del guest? (no responder al vacío) |
+## §D. Notas adicionales
 
-### 2.6 Effort estimate (rough)
+### Reviews API integration
+Reviews sync ya shipped (memorias: reviews-sync.ts cron daily, D1 migration 0012, `/api/reviews`, ReviewsCarousel, bot KB). Esto significa bot tiene acceso a reviews históricos via KB — útil para tone calibration AirBnB.
 
-- Spec brain quick: 30 min
-- Implementación: 6-10h CC (webhook + handler + métrica)
-- Canary: 1 semana observación
+### Ranking factor data
+Pre brain deep §A, recopilar:
+- Response rate actual (qué % responde Kari, qué % timeouts)
+- Response time avg actual
+- Acceptance rate inquiry→booking
+- Datos comparables AirBnB top performers (si Alex tiene acceso AirBnB dashboard)
+
+### ManyChat Sunset Stage 2 dependency
+Si §A se ejecuta antes de WABA propia (Q3+), bot AirBnB es independiente de ManyChat — no bloquea ni es bloqueado. Buena separación.
 
 ---
 
-## 3. Prioridad relativa
-
-Cuando inbox redesign (thread/196) cierre, brain priorización:
-
-| Item | Impacto business | Esfuerzo | Sugerido orden |
-|---|---|---|---|
-| AirBnB inquiry auto-response | Alto (ranking + conversion) | Bajo (6-10h) | **1° próximo** |
-| AirBnB bot activation flujo | Medio (cuando Kari escala) | Alto (12-20h) | 2° después |
-
-Probablemente quick win = inquiry auto-response primero, ya tenemos templates listos.
-
----
-
-## 4. Captura de contexto histórico
-
-- 2026-05-23 brain deep inbox redesign con Alex: surface backlog
-- Templates inquiry-response: PR #7 (mergeado 2026-05-13) agregó `{reviewsUrl}` + `{hostName}` placeholders necesarios para los 4 templates AirBnB
-- Casa Chamán (679176): renovation Q3 2026, NO surface a guests ni en templates AirBnB hasta post-renovation
-- Pet policy canónica: `$300 MXN/mascota/estancia` (NO `/noche`)
-- Stack: Beds24 v2 API connected (read+write tested), Haiku 4.5 para LLM si se usa, R2 `rdm-knowledge` KB
-
----
-
-## 5. Closing
-
-No execution scheduled. Cuando inbox redesign cierre y haya capacity, abrir thread separado (`thread/XXX-wc-airbnb-bot-spec.md` o `thread/XXX-wc-airbnb-inquiry-response-spec.md`) con brain deep + spec → DoIt.
-
-— WC, 2026-05-23
+**Status: BACKLOG (no execution yet)**
+**Author: WC**
+**Next step: brain deep §A o brain quick §B cuando Alex priorice**
