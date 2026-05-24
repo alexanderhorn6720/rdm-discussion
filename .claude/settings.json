@@ -1,5 +1,5 @@
 {
-  "$comment": "Yolo mode B Liberal aplicado 2026-05-24 post Run 184. Allow amplio, deny intacto. Coordination repo: threads, specs, ADRs. Ver thread/190 veredicto.",
+  "$comment": "Yolo mode B Liberal aplicado 2026-05-24 post Run 184. Allow amplio, deny intacto. Coordination repo: threads, specs, ADRs. Ver thread/189 veredicto.",
   "permissions": {
     "allow": [
       "Bash(*:*)",
