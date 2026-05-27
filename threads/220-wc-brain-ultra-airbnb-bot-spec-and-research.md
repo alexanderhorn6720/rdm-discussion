@@ -5,6 +5,8 @@ topic: airbnb-inquiry-bot-spec-and-customer-management-brain-ultra
 status: draft
 mode: brain-ultra
 created_at: 2026-05-27
+updated_at: 2026-05-27
+revision: 2
 references:
   - threads/33-guest360-architecture-phase-b-plan.md
   - threads/35-cc-templates-system-for-wc.md
@@ -25,9 +27,9 @@ estimated_effort: 24-32h CC + 4-6h Alex/Karina (templates) + canary 2-3 semanas
 
 > **Status:** Draft autónomo escrito mientras Alex duerme. Producto de ~6h de discovery + 2h de research + 1h de spec writing.
 >
-> **Lectura sugerida desayuno:** §0 TL;DR (5 min) → §1 Hallazgo principal (5 min) → §3 Spec PR1-PR3 (15 min) → §5 Decisión bot único vs separado (10 min) → §7 Creatividad (10 min). Total ~45 min lectura mobile.
+> **REV 2 (post-feedback Alex):** corrección importante sobre `payload.booking.price`. Ver §0.1 abajo.
 >
-> **Cómo está escrito:** Tradeoffs explícitos. Recomendaciones marcadas "voto WC preliminar". Decisiones cerradas donde la evidencia es clara, opciones abiertas donde Alex debe decidir.
+> **Lectura sugerida desayuno:** §0 TL;DR (5 min) → §0.1 Corrección precio (2 min) → §1 Hallazgo principal (5 min) → §3 Spec PR1-PR3 (15 min) → §5 Decisión bot único vs separado (10 min) → §7 Creatividad (10 min). Total ~45 min lectura mobile.
 
 ---
 
@@ -62,6 +64,36 @@ estimated_effort: 24-32h CC + 4-6h Alex/Karina (templates) + canary 2-3 semanas
 4. **PR3 +2 semanas:** activar lifecycle post-booking (welcome → pre-stay → post-stay)
 
 **Costo estimado:** 24-32h CC, $5-15 USD Anthropic API canary, riesgo bajo (approval mode + canary scaling).
+
+---
+
+## §0.1 · 🔴 CORRECCIÓN REV 2 — `payload.booking.price` NO es lo que ve el guest
+
+**Alex flagged correctamente** (mensaje 2026-05-27, post-thread/220 push): el `price` en payload Beds24 es **meta revenue NET** (lo que cobra Alex después de commission Airbnb + taxes que el guest paga). **NO** es el "Total" que ve el guest en el botón de Airbnb.
+
+**Verificado con D1 query:**
+
+| Tipo evento | `price` | `commission` | Interpretación |
+|---|---|---|---|
+| Inquiry Ana Karen | $28,789.02 | 0 (no detail) | NET (sin desglose en inquiry) |
+| Booking confirmado | $6,117.84 | $948.27 | NET + commission por separado |
+| Lo que ve el guest | **NO viene** en payload | — | Airbnb suma commission + service fee + taxes locales encima |
+
+**Implicación crítica para el spec:**
+
+1. **NO podemos mostrar un número** en el mensaje del bot porque no tenemos el "total guest" — lo único que tenemos es nuestro net.
+2. **NO recalculamos tampoco** — fórmula commission/service fee/tax varía por país, modo de reserva, fechas.
+3. **Lenguaje correcto en template:** "la tarifa que ya viste en Airbnb..." (sugerencia textual de Alex).
+
+**Cambios en spec (aplicados en REV 2):**
+
+- §2 ajustada: la tabla "Lo que detecta el sistema" ahora dice "NO tenemos el total que ve el guest, solo nuestro net" en lugar de declarar `price` como "número EXACTO que ve el guest".
+- §3.2 template RdM ES: removido `{airbnbPriceMxn}` placeholder con número. Reemplazado por frase "la tarifa que ya viste en Airbnb (ya incluye comisiones y taxes)".
+- §3.2 decisiones cerradas: agregada "**NO mostrar números de precio en mensajes**".
+- §3.2 eval iq008 (precio explícito): expectation ajustada — bot NO menciona número, dice "la tarifa que ya viste en Airbnb cubre la villa completa".
+- §11 risks: agregado risk "Bot muestra precio incorrecto" con mitigation "nunca mostrar número, solo referencia al que ya vio".
+
+**Por qué importa:** si bot dice "$28,789" y guest ve "$35,000" en Airbnb (porque incluye commission + taxes), guest piensa que bot está mal informado o engaña. Reputation hit.
 
 ---
 
@@ -108,7 +140,11 @@ Anchor del análisis: la inquiry recibida hace 3h. Sirve como caso de prueba par
 
 ### Lo que llegó
 
-Booking ID 87381196, RoomId 78695 (Rincón del Mar), inquiry status, 16 adultos, arrival 2026-08-21, departure 2026-08-23. Guest: "Ana Karen". Lang declared: `en` pero escribió en ES. **Precio Airbnb: $28,789** (incluye comisiones+taxes, ese es el precio).
+Booking ID 87381196, RoomId 78695 (Rincón del Mar), inquiry status, 16 adultos, arrival 2026-08-21, departure 2026-08-23. Guest: "Ana Karen". Lang declared: `en` pero escribió en ES.
+
+**🔴 Precio (corrección REV 2):** Payload trae `price: 28789.02` que es **el net revenue de Alex** (después de commission Airbnb + taxes guest). **NO es el total que ve el guest** en el botón Airbnb — eso suma service fee Airbnb + taxes locales encima, y NO viene en el payload Beds24.
+
+En inquiry NO hay desglose adicional. En booking confirmado sí aparece `commission` (ej: $948.27 separado de $6,117.84 price).
 
 Mensaje del guest: "Hola Alexander, estoy interesada en la renta de este lugar vi que ofrecen servicio de chef ¿el costo total incluye los víveres para la comida?"
 
@@ -127,7 +163,7 @@ Tiempo total: 2h 8min. Para Airbnb response rate metric, está bajo el threshold
 | Tamaño grupo (16) | ✅ | Trigger automático `extra-guests` capture (≥16 RdM/Morenas/Combinada) |
 | Pregunta concreta del huésped | ⚠️ texto presente | NO parseado para topic extraction |
 | Idioma real del huésped | ❌ | `lang='en'` mintió, Ana escribió en ES |
-| Precio Airbnb final | ✅ | `price: 28789.02` — el número EXACTO que el guest ve |
+| **Precio que ve el guest en Airbnb** | ❌ | **NO viene en payload.** Lo único disponible es `price` = net revenue Alex. **El "total guest" (con service fee + taxes) NO se recibe.** |
 
 ### Lo que falta para responder bien
 
@@ -166,7 +202,8 @@ apps/worker-bot/tests/inquiry-parser.test.ts
 
 Crear tabla `pending_inquiry_replies` con:
 - `id` ULID, `beds24_event_id` UNIQUE, `room_id`, `channel`
-- Guest snapshot: name, message_text, lang_detected, arrival/departure/nights/adults, airbnb_price_mxn (from payload directly)
+- Guest snapshot: name, message_text, lang_detected, arrival/departure/nights/adults
+- ~~`airbnb_price_mxn`~~ **REMOVIDO REV 2** — no mostraremos número en mensaje. Sí guardamos `meta_revenue_net_mxn` (= payload.booking.price) solo para reporting interno.
 - Question extraction: detected boolean, topic enum, extracted text, confidence
 - Composition: template_r2_key, snapshot, message_1_text, message_2_text (nullable)
 - LLM cost tracking
@@ -206,6 +243,7 @@ Output JSON con `lang` (es|en|other), `lang_confidence`, `topic` (chef|veveres|p
 | Idioma respuesta | El del mensaje guest, NO `payload.lang` | Airbnb mistraduce |
 | Multi-mensaje threading | 2-3s delay entre msg 1 y msg 2 | Beds24 wiki recomienda |
 | Casa Chamán | Filtrar — no responder | Memoria #6, no bookable |
+| **Precio en mensaje** (REV 2) | **NUNCA mostrar número** | `payload.price` = net Alex, NO total guest |
 
 #### Tests PR1
 
@@ -218,6 +256,7 @@ Output JSON con `lang` (es|en|other), `lang_confidence`, `topic` (chef|veveres|p
 - idempotente
 - handles malformed payload gracefully
 - skips Casa Chamán
+- **NEW REV 2:** template renders NEVER contains explicit MXN number
 
 #### DoD PR1
 
@@ -242,9 +281,11 @@ Output JSON con `lang` (es|en|other), `lang_confidence`, `topic` (chef|veveres|p
 
 `inquiry-rincon-del-mar-es.md`, `inquiry-rincon-del-mar-en.md`, `inquiry-las-morenas-es.md` (chef OPCIONAL clarificado), `inquiry-las-morenas-en.md`, `inquiry-combinada-es.md` (58-60 pax), `inquiry-combinada-en.md`, `inquiry-huerta-cocotera-es.md` (sin chef default), `inquiry-huerta-cocotera-en.md`.
 
-#### Template Rincón del Mar ES — propuesta enriched
+#### Template Rincón del Mar ES — propuesta enriched (REV 2)
 
-2 mensajes separados por marcador `{{MSG_2_BREAK}}`. Placeholders: `{guestFirstName}`, `{numAdults}`, `{nightsCount}`, `{airbnbPriceMxn}`, `{questionAnswer}`.
+2 mensajes separados por marcador `{{MSG_2_BREAK}}`. Placeholders: `{guestFirstName}`, `{numAdults}`, `{nightsCount}`, `{questionAnswer}`.
+
+🔴 **REV 2: `{airbnbPriceMxn}` REMOVIDO.** Reemplazado por frase descriptiva.
 
 **Mensaje 1 (corto, <500 chars):**
 
@@ -263,7 +304,7 @@ En un momento te mando la propuesta completa para los {numAdults} huéspedes que
 
 Es la villa con chef incluido del grupo. Apapacha total desde que llegan.
 
-✅ Lo que ya está incluido en la tarifa:
+✅ Lo que ya está incluido en la tarifa de Airbnb:
 • Chef Celene + cocinera + mozo (3 personas a su servicio)
 • Desayuno, comida y cena preparada
 • Bebidas en palapa-bar frente al mar
@@ -274,7 +315,7 @@ Es la villa con chef incluido del grupo. Apapacha total desde que llegan.
 Pacífico al frente. Lejos del bullicio de la bahía pero cerca del malecón si quieren cenar fuera. Vecinos canadienses y americanos.
 
 💰 Cómo funciona la cuenta
-• Tu tarifa de Airbnb: {airbnbPriceMxn} (ya incluye comisiones y taxes)
+• La tarifa que ya viste en Airbnb cubre la villa completa con el equipo de chef
 • Personas extras (hasta 30): $300/noche c/u, paga al llegar
 • Víveres: cuenta aparte transparente. Compras las hace nuestra chef Celene, pagás al llegar contra recibos. Promedio $250-280/persona/noche
 
@@ -292,28 +333,32 @@ Confirmás {numAdults} huéspedes o vienen más? Cualquier duda más, escribíme
 — Alexander 🏖
 ```
 
-**Notas críticas del template:**
+**Notas críticas del template (REV 2):**
 
 1. `{questionAnswer}` es dinámico — Haiku rellena con respuesta a pregunta detectada. Sin pregunta: saludo genérico.
-2. `{airbnbPriceMxn}` viene del payload directo. **NO recalcular** (memoria de Alex).
+2. **🔴 NO `{airbnbPriceMxn}`** — el payload `price` es net Alex, NO total guest. Lenguaje: "la tarifa que ya viste en Airbnb cubre la villa completa..." (sugerencia textual de Alex).
 3. **Emojis usados** (todos confirmados safe per blocklist 2026-05-14): 👋 🌊 🏖 ✅ 📍 💰 🛎 ⭐ 👉
 4. **NO usar:** 🌅 📶 🔒 🚨 (Airbnb bloquea o sospechoso)
 5. **NO incluir** footer cryptic `--> rincondelasmorenas / --> rincondelmar`
 6. **NO usar** "inseguridad de Acapulco" — reemplazar por "lejos del bullicio"
 7. Chef Celene **nombrada** — confianza > anonimato
 8. "Servicio chef incluido" claro — solo para RdM. Morenas será opcional $1,000/$1,500
+9. **$300 personas extras + $250-280/persona víveres + $1,400 paquete eventos**: estos sí son números nuestros, no de Airbnb. OK mostrarlos.
 
-#### Composer `{questionAnswer}` — determinista
+#### Composer `{questionAnswer}` — determinista (REV 2)
 
 Switch/case sobre topic detectado. Anti-hallucination: NO LLM-generated, hardcoded responses por topic.
 
 ```
-chef     → "El servicio de chef SÍ está incluido en la tarifa..."
-veveres  → "Los víveres NO están incluidos — esos los compramos nosotros..."
+chef     → "El servicio de chef SÍ está incluido en la tarifa que ya viste en Airbnb (Chef Celene + cocinera + mozo)."
+veveres  → "Los víveres NO están incluidos en la tarifa de Airbnb — esos los compramos nosotros, costo transparente, pagás al llegar. Promedio $250-280/persona/noche."
+precio   → "La tarifa que ya viste en Airbnb cubre la villa completa con el equipo de chef. Lo único que se paga aparte son las personas extras (>16) a $300/noche y los víveres."
 mascotas → "Aceptamos hasta 2 mascotas por reservación, con un cargo único de $300 MXN por estancia (no por noche)."
-evento   → "¡Felicidades por el evento! Para bodas/XV años manejamos paquete de $1,400/persona..."
+evento   → "¡Felicidades por el evento! Para bodas/XV años manejamos paquete de $1,400/persona, mínimo 40 invitados."
 default  → "Muchas gracias por tu pregunta. Te respondo a detalle en el siguiente mensaje."
 ```
+
+**Patrón anti-confusion REV 2:** cuando hablamos de la tarifa Airbnb, **siempre** decimos "la tarifa que ya viste en Airbnb" — referenciamos lo que el guest ya conoce, sin inventar número.
 
 **Voto WC preliminar:** composer determinista para PR2. Anti-hallucination es prioridad. Stage 2 (futuro) podría usar LLM con KB injection para casos novedosos.
 
@@ -348,17 +393,18 @@ default  → "Muchas gracias por tu pregunta. Te respondo a detalle en el siguie
 | Auto-translate | NO — usar ES/EN | Pierde matiz |
 | `{questionAnswer}` | Composer determinista | Anti-hallucination |
 | Footer signature | "— Alexander 🏖" | Reemplaza cryptic |
+| **Precio Airbnb en texto** (REV 2) | **"la tarifa que ya viste en Airbnb..."** | `price` payload = net Alex, no total guest |
 
-#### Eval cases PR2 (10 scenarios)
+#### Eval cases PR2 (10 scenarios, REV 2 ajustado)
 
-- iq001: Ana Karen real (chef + víveres)
+- iq001: Ana Karen real (chef + víveres) — **REV 2:** msg2 NO contiene número MXN del payload
 - iq002: EN guest mascotas Las Morenas
 - iq003: Inquiry sin pregunta concreta
 - iq004: Wedding inquiry high-stake
 - iq005: Off-platform attempt
 - iq006: Complaint pre-booking
 - iq007: Multiple topics
-- iq008: Precio explícito (verifica placeholder rendered)
+- iq008: **REV 2** Precio explícito — bot dice "tarifa que ya viste en Airbnb cubre la villa completa", NO inventa número
 - iq009: Negotiation agresivo
 - iq010: Idioma payload incorrecto (FR pero payload dice ES)
 
@@ -691,6 +737,15 @@ Reduce friction. Captura revenue.
 
 Track sentiment per turn. Trending negative → escalate Karina aunque no haya keyword "alarm". Haiku score 0-100, threshold <40 = escalate. Defer.
 
+### §7.16 (NEW REV 2) · Reporting interno con `meta_revenue_net_mxn`
+
+`payload.booking.price` SÍ vale guardar — es la **proyección de revenue NET** que Alex va a cobrar. Útil para:
+- Dashboard interno "expected revenue this month"
+- Comparativa lead → booking (cuántos $ se convierten)
+- Estadística por villa/temporada
+
+Solo guardarlo en D1 (`pending_inquiry_replies.meta_revenue_net_mxn`), NUNCA mostrarlo al guest.
+
 ---
 
 ## §8 · Inconsistencias cross-channel que el bot va a destapar
@@ -718,6 +773,9 @@ RdM/Combinada: Superestricta 30d. Morenas: Estricta. Huerta: Firme. **Decisión 
 
 ### §8.8 · Páginas missing en sitio
 `/guia-llegada` 404 (templates linkean). `/eventos` 404. **Fix:** crear pages.
+
+### §8.9 (NEW REV 2) · "Total Airbnb" no se puede mostrar
+`payload.booking.price` ≠ total que ve el guest. Diferencia = commission Airbnb + service fee + taxes locales (NO viene en payload). **Implicación:** bot NUNCA muestra número de precio. Solo dice "la tarifa que ya viste en Airbnb".
 
 ---
 
@@ -763,6 +821,7 @@ RdM/Combinada: Superestricta 30d. Morenas: Estricta. Huerta: Firme. **Decisión 
 - Telegram alert high-stake LIVE
 - Worker version bumped + deployed
 - Karina training sesión (15 min)
+- **REV 2:** templates NO contienen `{airbnbPriceMxn}` placeholder
 
 ### PR3
 - 32 lifecycle templates in R2
@@ -796,6 +855,7 @@ RdM/Combinada: Superestricta 30d. Morenas: Estricta. Huerta: Firme. **Decisión 
 | Karina overwhelmed por approvals | Media | Canary scaling auto-reduces load |
 | Casa Chamán mencionada por error | Alta | Filter roomId in handler |
 | Greeter v7.1 break | Alta | Separate eval framework |
+| **(NEW REV 2)** Bot muestra precio incorrecto al guest | **Alta** | **NUNCA mostrar número MXN. Solo "tarifa que ya viste en Airbnb"** |
 
 ---
 
@@ -853,6 +913,27 @@ Cuando despiertes:
 - Vrbo: PDF, JPG, PNG, GIF
 - Booking.com: depends on channel
 
+### Beds24 payload — qué viene y qué NO (REV 2)
+
+**En `event_type='booking_created' status='inquiry'`:**
+- `price`: ✅ presente (= net Alex)
+- `commission`: 0 (no aparece detail en inquiry)
+- `deposit`: 0
+- `tax`: 0
+- `priceDetails`: null
+- `invoice`: null
+- `invoiceItems`: null
+
+**En `event_type='booking_created' status='confirmed'`:**
+- `price`: ✅ presente (= net Alex)
+- `commission`: ✅ presente (lo que cobra Airbnb)
+- Resto: typically still null
+
+**Lo que NUNCA viene en payload Beds24:**
+- Total que el guest ve en Airbnb (price + commission + service fee + taxes locales)
+- Service fee del guest (cobra Airbnb directo al guest)
+- Taxes locales (varían por país/región)
+
 ### Hospitable AI features observed
 
 - 3 control modes (Suggest / Approve / Auto)
@@ -908,18 +989,27 @@ PR1 adds:
 
 ## §14 · Status
 
-**Documento status:** Draft. WC pre-deliverable autónomo overnight session.
+**Documento status:** Draft REV 2. WC pre-deliverable autónomo overnight session + correctivo precio.
+
+**Cambios REV 2 (2026-05-27 mañana):**
+- Corrección crítica `payload.booking.price` = net Alex (no total guest)
+- Verificado con D1 query directo
+- Template RdM ES: `{airbnbPriceMxn}` REMOVIDO, reemplazado por "tarifa que ya viste en Airbnb"
+- Composer determinista: lenguaje sin números MXN del payload
+- Eval iq001 + iq008 ajustados
+- §8.9 nueva: inconsistencia "Total Airbnb" no se puede mostrar
+- §7.16 nueva: `meta_revenue_net_mxn` reporting interno (solo D1, nunca guest)
+- §11 risks: agregado risk "precio incorrecto" + mitigation
 
 **Próximas acciones:**
-- Alex lee este thread mañana
+- Alex confirma 5 preguntas §12
 - Decide arrancar PR1 (CC autonomous), o pivota
 - Si arranca: CC ejecuta + WC review pre-merge
-- Si pivota: redirect a próxima prioridad
 
 **Sesión WC:** cerrada hasta próxima invocación.
 
 ---
 
-*FIN thread/220. Brain ultra completo. Producto de discovery + research + spec writing autónomo overnight.*
+*FIN thread/220 REV 2. Brain ultra + correctivo precio.*
 
-— Web Claude, 2026-05-27, autonomous session
+— Web Claude, 2026-05-27
