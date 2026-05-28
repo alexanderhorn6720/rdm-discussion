@@ -5,8 +5,9 @@ topic: airbnb-inquiry-bot-spec-and-customer-management-brain-ultra
 status: ready-for-doit
 mode: brain-ultra
 created_at: 2026-05-27
-updated_at: 2026-05-27
-revision: 3
+updated_at: 2026-05-28
+revision: 4
+doit_task: thread/232 (renumbered from 222 post payment-flow merge)
 references:
   - threads/33-guest360-architecture-phase-b-plan.md
   - threads/35-cc-templates-system-for-wc.md
@@ -15,6 +16,7 @@ references:
   - threads/110-112-messenger-outbound-feature.md
   - threads/196-inbox-redesign.md
   - threads/217-greeter-v7.1-mega-spec.md
+  - threads/232-wc-cc-bot-doit-pr1-inquiry-bot-infra.md
   - knowledge/airbnb-templates-current-2026-05-13.json
   - knowledge/airbnb-listing-fields-current-2026-05-13.md
   - knowledge/airbnb-emoji-blocklist-2026-05-14.md
@@ -25,9 +27,9 @@ estimated_effort: 24-32h CC + 4-6h Alex/Karina (templates) + canary 2-3 semanas
 
 # thread/220 — Brain ultra: Airbnb Inquiry Bot + Customer Management
 
-> **Status:** REV 3 — Ready for DoIt CC. Arquitectura cerrada post-feedback Alex.
+> **Status:** REV 4 — Ready for DoIt CC (task = thread/232). Arquitectura cerrada + ajustes post payment-flow merge.
 >
-> **Changelog:** REV 1 = brain ultra inicial. REV 2 = corrección precio. **REV 3 = arquitectura webhook+debounce+pause cerrada.**
+> **Changelog:** REV 1 = brain ultra inicial. REV 2 = corrección precio. REV 3 = arquitectura webhook+debounce+pause. **REV 4 = ajustes de integración tras merge payment-flow (migration 0052, integration point preciso, anti-loop guard).**
 
 ---
 
@@ -79,12 +81,57 @@ El `price` en payload Beds24 es **meta revenue NET** (lo que cobra Alex después
 
 **Reasoning H2 1h pause vs H3 LLM re-eval:**
 - Alex constraint: "Realmente no quiero que Kari y yo intervengan, serían excepciones por mensajes críticos"
-- Por lo tanto: cuando hay intervención humana, es rara y específica
 - H2 1h: simple, predecible, sin LLM extra call
 - Si guest sigue conversación 1h+ después → bot retoma (asume host no estaba siguiendo)
 - Si guest sigue conversación en <1h → respeta intervención activa de Karina
 
-**Industry validation:** Uplisting docs textuales: "Some members prefer to delay up to 60 minutes to allow them to respond manually." Hospitable: "If you have a delay on your message, and you manually replied before the scheduled send time, we will not send it."
+**Industry validation:** Uplisting/Hospitable docs textuales sobre delay configurable + skip si host respondió.
+
+---
+
+## §0.3 · 🟠 AJUSTES REV 4 — integración tras merge payment-flow (CRÍTICO para CC)
+
+Mientras se escribía REV 1-3, una cadena P0 payment-flow (threads 222/224/226/228/230, PRs #194-#198) **mergeó a main** (2026-05-27 21:39 → 2026-05-28 03:25). Verificado contra repo real. 3 ajustes obligatorios:
+
+### Ajuste 1 — Migration 0051 → **0052**
+
+PR #194 creó `migrations/0051_bookings_beds24_booking_id.sql` (`ALTER TABLE bookings ADD beds24_booking_id`). El número 0051 **ya está tomado**.
+
+→ La tabla `pending_inquiry_replies` usa **migration 0052** (CC debe audit `ls migrations/ | sort -V | tail` y confirmar siguiente libre). Todas las referencias "0051" en §3.1/§10/§13 abajo se leen como **0052**.
+
+### Ajuste 2 — Integration point PRECISO = `runBeds24Normalize`
+
+REV 3 decía genéricamente "webhook handler donde hace `action_taken='skipped_inquiry'`". Verificado: ese punto es la función **`runBeds24Normalize` en `apps/worker-bot/src/beds24-normalize.ts`**, no el webhook HTTP directo.
+
+Flujo real:
+```
+Beds24 webhook → INSERT beds24_events (action_taken=NULL)
+Cron → runBeds24Normalize() → SELECT events action_taken IS NULL
+  → parseBeds24Booking(payload)   ← REUTILIZABLE, ya entrega ParsedBooking completo
+  → shouldNormalize(status):
+      'inquiry' → { normalize:false, reason:'skipped_inquiry' }
+      → markEvent('skipped_inquiry')   ← INYECTAR enqueueInquiryReply ANTES de esto
+```
+
+Integration: en `runBeds24Normalize`, cuando `decision.reason === 'skipped_inquiry'` && `parsed.channel === 'airbnb'` && `ev.event_type === 'booking_created'` → llamar `enqueueInquiryReply(env, parsed, ev)` reutilizando el `parsed` existente (NO reparsear payload).
+
+### Ajuste 3 — 🔴 ANTI-LOOP GUARD obligatorio (incident 2026-05-18)
+
+Documentado en `beds24-normalize.ts`: **cada mensaje que el bot manda a Beds24 dispara un `booking_modified` webhook de vuelta (~3s después).** En mayo esto causó 17 welcomes duplicados antes de detectarse.
+
+Mi inquiry bot MANDA mensajes → mismo riesgo. Guard obligatorio:
+
+1. **Solo enqueue desde `event_type='booking_created'` + `status='inquiry'`.** NUNCA desde `booking_modified` (ese es el eco del propio bot).
+2. **Dedup por `booking_id`:** si ya existe PIR para ese `beds24_booking_id` con status NOT IN ('expired','rejected') → NO crear nuevo PIR. Solo UPDATE debounce si sigue en `awaiting_processing`.
+3. **Idempotencia `beds24_event_id` UNIQUE** ya cubre "mismo evento 2x", pero el dedup por booking_id cubre "evento distinto, mismo booking" (el eco).
+
+Patrón de referencia: `upsertBooking` en el mismo archivo usa `ON CONFLICT DO UPDATE` preservando automation state justamente por este incident. Mismo principio.
+
+### Ajuste 4 — NO tocar código payment-flow
+
+PRs #194-#198 tocaron pesado: `webhook-mp.ts`, `beds24-direct.ts`, `beds24-release.ts`, `worker-pago/crons.ts`. **Todo eso es P0 recién mergeado — fuera de scope, NO tocar.** El inquiry bot vive en worker-bot, no en worker-pago.
+
+**Nota patrón Beds24 (informativo):** PR #197 cambió modify de `PATCH /v2/bookings/{id}` (no existe) a `POST /v2/bookings [{id,status}]`. Para PR1 NO aplica (el inquiry bot solo manda messages vía `POST /v2/bookings/messages`, no modifica bookings). Pero si CC ve PATCH en código viejo, ignorar — el patrón vigente es POST.
 
 ---
 
@@ -131,38 +178,40 @@ Mensaje guest: "Hola Alexander, estoy interesada en la renta de este lugar vi qu
 
 ---
 
-## §3 · Spec del bot — PR1, PR2, PR3 (REV 3)
+## §3 · Spec del bot — PR1, PR2, PR3 (REV 3, ajustes REV 4 en §0.3)
 
-### §3.1 · PR1 — Infraestructura inquiry-response (REV 3 — arquitectura webhook + debounce + pause)
+### §3.1 · PR1 — Infraestructura inquiry-response
 
 **Branch:** `feat/inquiry-bot-infra`
-**Effort:** 10-14h CC (REV 3 +2h por debounce/pause logic)
+**Effort:** 10-14h CC
 **Risk:** muy bajo
+**DoIt task:** thread/232
+**⚠️ Migration:** **0052** (ver §0.3 Ajuste 1 — 0051 ya tomado por payment-flow)
 
 #### Archivos a crear
 
 ```
-apps/worker-bot/src/inquiry-response.ts            // Handler principal
-apps/worker-bot/src/inquiry-enqueue.ts             // NEW REV 3 — webhook → PIR enqueue
+apps/worker-bot/src/inquiry-response.ts            // Handler principal (processReadyInquiries)
+apps/worker-bot/src/inquiry-enqueue.ts             // enqueueInquiryReply (desde runBeds24Normalize)
 apps/worker-bot/src/inquiry-templates.ts           // Template loader + composer
 apps/worker-bot/src/inquiry-parser.ts              // Haiku question extraction
-apps/worker-bot/src/inquiry-pause-check.ts         // NEW REV 3 — 1h pause logic
+apps/worker-bot/src/inquiry-pause-check.ts         // 1h pause logic
 packages/agents/src/prompts/inquiry-question-parser.ts
-migrations/0051_pending_inquiry_replies.sql
+migrations/0052_pending_inquiry_replies.sql        // ⚠️ 0052 NO 0051
 apps/web/src/pages/admin/inquiry-replies.astro     // Approval UI
 apps/web/src/pages/api/admin/inquiry-replies/[id].ts
 apps/worker-bot/tests/inquiry-response.test.ts
 apps/worker-bot/tests/inquiry-parser.test.ts
-apps/worker-bot/tests/inquiry-pause.test.ts        // NEW REV 3
+apps/worker-bot/tests/inquiry-pause.test.ts
 ```
 
-#### Migration 0051 (REV 3 — schema actualizado)
+#### Migration 0052 (schema)
 
 ```sql
 CREATE TABLE pending_inquiry_replies (
   id TEXT PRIMARY KEY,                              -- ULID
   beds24_event_id INTEGER NOT NULL UNIQUE,          -- idempotency key
-  beds24_booking_id INTEGER NOT NULL,
+  beds24_booking_id INTEGER NOT NULL,               -- anti-loop dedup key (ver §0.3 Ajuste 3)
   room_id INTEGER NOT NULL,
   channel TEXT NOT NULL DEFAULT 'airbnb',
 
@@ -174,12 +223,12 @@ CREATE TABLE pending_inquiry_replies (
   departure TEXT,
   num_nights INTEGER,
   num_adults INTEGER,
-  meta_revenue_net_mxn REAL,                        -- payload.booking.price (INTERNAL ONLY, never shown to guest)
+  meta_revenue_net_mxn REAL,                        -- payload.booking.price (INTERNAL ONLY)
 
   -- Question extraction (Haiku)
   question_detected INTEGER NOT NULL DEFAULT 0,
   question_topic TEXT,
-  question_topics_list TEXT,                        -- JSON array si multiple
+  question_topics_list TEXT,
   question_extracted TEXT,
   question_confidence REAL,
   question_tone TEXT,
@@ -198,23 +247,17 @@ CREATE TABLE pending_inquiry_replies (
   llm_cache_hit INTEGER DEFAULT 0,
   llm_cost_usd REAL,
 
-  -- REV 3: Debounce + pause architecture
-  process_at INTEGER NOT NULL,                      -- unix timestamp when ready to process (NOW + 5min on insert)
-  last_inbound_msg_at INTEGER NOT NULL,             -- last guest msg time, resets process_at +5min on each new guest msg
-  bot_pause_until INTEGER,                          -- nullable. If set, bot will not send until this timestamp
+  -- Debounce + pause
+  process_at INTEGER NOT NULL,                      -- NOW + 5min on insert
+  last_inbound_msg_at INTEGER NOT NULL,             -- resets process_at on each new guest msg
+  debounce_reset_count INTEGER NOT NULL DEFAULT 0,  -- cap 5 (anti spam, ver §11)
+  bot_pause_until INTEGER,
   pause_reason TEXT,                                -- 'host_intervened' | 'manual_pause' | 'red_flag'
 
-  -- Status lifecycle (REV 3 enum extended)
+  -- Status lifecycle
   status TEXT NOT NULL DEFAULT 'awaiting_processing' CHECK (status IN (
-    'awaiting_processing',    -- webhook recibió, esperando debounce window
-    'approval_pending',       -- Haiku ya procesó, esperando review humano (PR1) o canary auto-send (PR2)
-    'approved',               -- approved for send, held in queue
-    'sent',                   -- delivered
-    'rejected',               -- explicit human rejection
-    'expired',                -- 48h sin acción
-    'auto_send_eligible',     -- canary % hit, will send sin approval
-    'superseded_by_human',    -- host respondió primero, audit only
-    'paused'                  -- waiting for bot_pause_until
+    'awaiting_processing', 'approval_pending', 'approved', 'sent',
+    'rejected', 'expired', 'auto_send_eligible', 'superseded_by_human', 'paused'
   )),
   reviewed_by TEXT,
   reviewed_at INTEGER,
@@ -238,149 +281,119 @@ CREATE INDEX idx_pir_ready ON pending_inquiry_replies(process_at)
 CREATE INDEX idx_pir_booking ON pending_inquiry_replies(beds24_booking_id, created_at);
 ```
 
-#### Handler architecture (REV 3 — split en 3 funciones)
+#### Handler architecture (3 funciones)
 
-**Función 1: `enqueueInquiryReply(env, beds24Event)`** — llamada por webhook handler
+**`enqueueInquiryReply(env, parsed, ev)`** — llamada desde `runBeds24Normalize` (NO webhook HTTP)
 
 ```
-1. Parse payload, extract booking + messages
-2. Filter: only inquiry status + Airbnb referer + NOT Casa Chamán (679176)
-3. Check if PIR exists for beds24_event_id:
-   - NO existe → INSERT new PIR (process_at = NOW + 5min, status='awaiting_processing')
-   - SÍ existe → UPDATE process_at = NOW + 5min, last_inbound_msg_at = NOW
-                 (debounce reset: si guest manda otro msg, timer reinicia)
+1. Recibe `parsed` (ParsedBooking ya parseado) + `ev` (beds24_events row)
+2. Filter: parsed.channel === 'airbnb' && roomId !== 679176 (Casa Chamán) && ev.event_type === 'booking_created'
+3. Anti-loop dedup (§0.3 Ajuste 3):
+   - Existe PIR con mismo beds24_booking_id Y status NOT IN ('expired','rejected')?
+     - SÍ + status='awaiting_processing' → UPDATE process_at = NOW+5min, last_inbound_msg_at=NOW, debounce_reset_count++
+     - SÍ + otro status → SKIP (ya en proceso o respondido)
+     - NO → INSERT new PIR (process_at = NOW+5min, status='awaiting_processing')
 4. NO procesar acá. Solo enqueue.
 ```
 
-**Función 2: `processReadyInquiries(env)`** — llamada por cron `*/5min` existente
+**`processReadyInquiries(env)`** — llamada por cron `*/5min` existente
 
 ```
-1. SELECT PIR rows WHERE status='awaiting_processing' AND process_at <= NOW LIMIT 20
-2. For each row:
-   a. Check pause logic (función 3)
-      - Si bot_pause_until > NOW → status='paused', skip
-      - Si bot_pause_until <= NOW pero existe host msg en último 1h → status='paused', extend bot_pause_until
-      - Si no hay host msg en último 1h → continuar processing
-   b. Check if host respondió DESPUÉS del last_inbound_msg_at:
-      - SÍ host_msg_time > last_inbound_msg_at → status='superseded_by_human', audit, skip send
-      - NO → continuar
-   c. Parse via Haiku
-   d. Load template R2
-   e. Compose 2 messages
-   f. status='approval_pending' (PR1) o aplicar canary % (PR2)
-   g. UPDATE PIR row con composition + LLM cost
-3. Backup sweep cada 3ra ejecución (cron tick mod 3 == 0):
-   - SELECT beds24_events WHERE status='inquiry' AND id NOT IN (SELECT beds24_event_id FROM pending_inquiry_replies)
-   - For each missing → call enqueueInquiryReply
+1. SELECT PIR WHERE status='awaiting_processing' AND process_at <= NOW LIMIT 20
+2. For each:
+   a. checkHumanPause → si paused, status='paused', extend bot_pause_until, skip
+   b. Si host respondió DESPUÉS de last_inbound_msg_at → status='superseded_by_human', audit, skip
+   c. Haiku parse → load template R2 → compose 2 msgs
+   d. status='approval_pending' (PR1) | canary % (PR2)
+3. Backup sweep cada 3er tick: beds24_events status='inquiry' action_taken='skipped_inquiry' sin PIR → enqueue
 ```
 
-**Función 3: `checkHumanPause(env, pir)`** — lógica 1h pause time-based
+**`checkHumanPause(env, pir)`** — 1h time-based
 
 ```
-1. SELECT bot_messages_inbox 
-   WHERE booking_id = pir.beds24_booking_id 
-     AND source = 'host' 
-     AND message_time > pir.last_inbound_msg_at - 3600  -- ventana de búsqueda extendida
-   ORDER BY message_time DESC LIMIT 1
-   
-2. Si NO existe host msg → no pause, retorna {paused: false}
-
-3. Si existe host msg:
-   - last_host_msg_at = found.message_time
-   - elapsed_since_host = NOW - last_host_msg_at
-   - Si elapsed_since_host < 3600 (1h) → 
-       {paused: true, pause_until: last_host_msg_at + 3600, reason: 'host_intervened'}
-   - Si elapsed_since_host >= 3600 (1h sin host activity) → 
-       {paused: false, audit: 'human_intervention_expired'}
+1. SELECT bot_messages_inbox WHERE booking_id=pir.beds24_booking_id AND source='host'
+   AND message_time > pir.last_inbound_msg_at - 3600 ORDER BY message_time DESC LIMIT 1
+2. NO host msg → {paused:false}
+3. host msg + elapsed < 1h → {paused:true, pause_until: last_host+3600, reason:'host_intervened'}
+4. host msg + elapsed >= 1h → {paused:false, audit:'human_intervention_expired'}
 ```
 
-**Webhook integration point:**
+**Integration point (§0.3 Ajuste 2):** en `runBeds24Normalize`, branch `decision.reason==='skipped_inquiry'` + airbnb + booking_created → `enqueueInquiryReply` antes de `markEvent`.
 
-El handler de Beds24 webhook (ya existente en código actual) debe llamar `enqueueInquiryReply` al recibir status='inquiry' events. Punto de integración: donde actualmente hace `action_taken='skipped_inquiry'`, ahora hace ese log + llama enqueue.
+#### Cron schedule (sin agregar nuevo)
 
-#### Cron schedule (REV 3 — sin agregar cron nuevo)
-
-| Cron actual | Frecuencia | Handler nuevo dentro |
+| Cron actual | Frecuencia | Handler nuevo |
 |---|---|---|
-| `0 10 * * *` (daily) | 1×/día | (no cambio) |
-| `*/5 * * * *` (polling) | Cada 5 min | **+ `processReadyInquiries()` cada tick** |
-| `*/30 * * * *` (pre-stay scan) | Cada 30 min | (no cambio) |
-
-**Backup sweep dentro de `*/5min`:** cada 3er tick (mod 3 == 0), también escanea `beds24_events` sin PIR row asociado. Worst case: 15 min hasta detectar webhook lost.
+| `*/5 * * * *` (polling, llama runBeds24Normalize) | Cada 5 min | **+ processReadyInquiries + backup sweep cada 3er tick** |
 
 #### Inquiry question parser prompt (Haiku 4.5)
 
 Output JSON: `lang` (es|en|other), `lang_confidence`, `topic` (chef|veveres|precio|mascotas|amenidades|ubicacion|capacidad|evento|fechas|transporte|actividades|ninguna|multiple), `topics_list`, `question_extracted`, `question_confidence`, `tone` (casual|formal|urgent|vip), `red_flag` (null|off_platform_attempt|negotiation_aggressive|complaint).
 
-#### Decisiones cerradas PR1 (REV 3 actualizado)
+#### Decisiones cerradas PR1
 
-| Decisión | Valor | Razón |
-|---|---|---|
-| Idempotencia | Por `beds24_event_id` UNIQUE | Beds24 webhook puede llegar 2x |
-| **Trigger architecture** | **Webhook push + 5min debounce + cron processor** | Industry standard, captura 70% bursts |
-| **Debounce reset** | **Cada nuevo guest msg resetea `process_at = NOW + 5min`** | Agrupa serie de mensajes |
-| **Cron** | **Reutilizar `*/5min` existente** | NO agregar 5to cron |
-| **Backup sweep** | **Cada 3er tick (`*/15min` efectivo)** | Defense in depth |
-| **Human pause** | **Time-based 1h después de host msg** | Pragmatic, sin LLM extra |
-| **Bot retoma** | **Si 1h sin host msg adicional → unpause** | Asume host no estaba siguiendo |
-| Window de procesamiento | últimos 24h | Inquiries más viejas pierden valor |
-| Estado inicial PR1 | `awaiting_processing` → `approval_pending` | Nunca auto-envía en PR1 |
-| Approval UI | `/admin/inquiry-replies` | Separate de `/admin/inbox` |
-| Editor en UI | Sí, editan msg1 + msg2 antes de approve | Polish manual |
-| Approval timeout | 48h → `expired` | No pending forever |
-| Idioma respuesta | El del mensaje guest, NO `payload.lang` | Airbnb mistraduce |
-| Multi-mensaje threading | 2-3s delay entre msg 1 y msg 2 | Beds24 wiki |
-| Casa Chamán | Filtrar — no responder | Memoria #6 |
-| Precio en mensaje | NUNCA mostrar número | `payload.price` = net Alex |
+| Decisión | Valor |
+|---|---|
+| Idempotencia | `beds24_event_id` UNIQUE + dedup por `beds24_booking_id` (anti-loop) |
+| Trigger | Inyectado en `runBeds24Normalize` branch skipped_inquiry, NO webhook HTTP |
+| Solo booking_created | NUNCA enqueue desde booking_modified (anti-loop, §0.3) |
+| Debounce reset | Cada guest msg → process_at = NOW+5min, cap 5 resets |
+| Cron | Reutilizar `*/5min` existente |
+| Backup sweep | Cada 3er tick |
+| Human pause | Time-based 1h |
+| Window | últimos 24h |
+| Estado inicial PR1 | awaiting_processing → approval_pending (nunca auto-send) |
+| Idioma respuesta | El del mensaje guest, NO payload.lang |
+| Casa Chamán | Filtrar roomId 679176 |
+| Precio en mensaje | NUNCA mostrar número |
+| parseBeds24Booking | Reutilizar el existente, NO reparsear |
 
-#### Tests PR1 (REV 3 ampliado)
+#### Tests PR1 (12 incluido anti-loop)
 
 - drafts response for new inquiry with question
-- skips inquiry without guest message  
+- skips inquiry without guest message
 - detects language correctly when payload.lang != actual
 - extracts topics correctly
 - respects 24h window
-- idempotente (mismo beds24_event_id → solo 1 PIR)
+- idempotente (mismo beds24_event_id → 1 PIR)
+- **anti-loop: booking_modified posterior del mismo booking → NO crea segundo PIR**
 - handles malformed payload gracefully
 - skips Casa Chamán
 - template renders NEVER contains explicit MXN number
-- **NEW REV 3:** burst de 3 msgs guest en 90 seg → solo 1 PIR row, process_at se resetea cada UPDATE
-- **NEW REV 3:** host respondió 30 min antes de cron tick → PIR status='paused', bot_pause_until = host_msg_at + 1h
-- **NEW REV 3:** host respondió hace 2h sin más actividad humana → bot retoma, status='approval_pending'
-- **NEW REV 3:** host respondió, después guest msg nuevo dentro de 1h → bot keep paused, bot_pause_until extends
-- **NEW REV 3:** backup sweep detecta beds24_event sin PIR → enqueues correctly
+- burst 3 msgs en 90 seg → 1 PIR, process_at se resetea (cap 5)
+- host respondió 30min antes → PIR paused, bot_pause_until = host+1h
+- host respondió hace 2h sin actividad → bot retoma approval_pending
+- backup sweep detecta beds24_event sin PIR → enqueue
 
-#### DoD PR1 (REV 3)
+#### DoD PR1
 
-- Migration 0051 applied remote D1
-- Webhook handler integrado con `enqueueInquiryReply`
-- Cron `*/5min` integrado con `processReadyInquiries` + backup sweep cada 3er tick
-- `/admin/inquiry-replies` UI live con edit + approve + reject
-- Smoke test: simular inquiry payload → PIR row created status='awaiting_processing' → tras 5min → status='approval_pending'
-- Smoke test pause: simular host msg → PIR status='paused' → simular 1h sin host activity → cron unpause
-- Tests ≥85% coverage
-- Zero auto-sends (canary 0%)
-- Documentation en code
+- Migration 0052 applied local D1 (CC) → remote pendiente Alex
+- Integration en runBeds24Normalize (branch skipped_inquiry + airbnb + booking_created)
+- Anti-loop dedup funcional
+- Cron processReadyInquiries + backup sweep
+- Approval UI live con edit + approve + reject
+- Smoke test debounce + pause + anti-loop
+- Tests ≥85% coverage, greeter sin regresión
+- Zero auto-sends
 
 ---
 
 ### §3.2 · PR2 — Templates Phase B.2 enriched + canary
 
 **Branch:** `feat/inquiry-templates-canary`
-**Effort:** 8-10h CC + 4-6h Alex/Karina (templates)
-**Risk:** medio (sale a producción real con canary)
-**Dependency:** PR1 merged + deployed
+**Effort:** 8-10h CC + 4-6h Alex/Karina
+**Risk:** medio
+**Dependency:** PR1 merged
 
 #### Templates en R2 — 8 totales (4 villas × ES+EN)
 
-`inquiry-rincon-del-mar-es.md`, `inquiry-rincon-del-mar-en.md`, `inquiry-las-morenas-es.md` (chef OPCIONAL), `inquiry-las-morenas-en.md`, `inquiry-combinada-es.md` (58-60 pax), `inquiry-combinada-en.md`, `inquiry-huerta-cocotera-es.md` (sin chef default), `inquiry-huerta-cocotera-en.md`.
+`inquiry-rincon-del-mar-es.md`, `-en.md`, `inquiry-las-morenas-es.md` (chef OPCIONAL), `-en.md`, `inquiry-combinada-es.md` (58-60 pax), `-en.md`, `inquiry-huerta-cocotera-es.md` (sin chef default), `-en.md`.
 
-#### Template Rincón del Mar ES — propuesta enriched (REV 2 manteniendo, REV 3 sin cambios)
+#### Template RdM ES — enriched (sin cambios REV 4)
 
-2 mensajes separados por `{{MSG_2_BREAK}}`. Placeholders: `{guestFirstName}`, `{numAdults}`, `{nightsCount}`, `{questionAnswer}`.
+2 mensajes `{{MSG_2_BREAK}}`. Placeholders: `{guestFirstName}`, `{numAdults}`, `{nightsCount}`, `{questionAnswer}`.
 
-**Mensaje 1 (corto, <500 chars):**
-
+**Mensaje 1 (<500 chars):**
 ```
 ¡Hola {guestFirstName}! 👋
 
@@ -389,8 +402,7 @@ Output JSON: `lang` (es|en|other), `lang_confidence`, `topic` (chef|veveres|prec
 En un momento te mando la propuesta completa para los {numAdults} huéspedes que mencionaste. 🌊
 ```
 
-**Mensaje 2 (enriched, <2000 chars):**
-
+**Mensaje 2 (<2000 chars):**
 ```
 🏖 Rincón del Mar — para {numAdults} personas, {nightsCount} noches
 
@@ -404,17 +416,16 @@ Es la villa con chef incluido del grupo. Apapacha total desde que llegan.
 • 6 habitaciones · 18 camas · 6.5 baños
 
 📍 Pie de playa · zona tranquila
-Pacífico al frente. Lejos del bullicio de la bahía pero cerca del malecón si quieren cenar fuera. Vecinos canadienses y americanos.
+Pacífico al frente. Lejos del bullicio de la bahía pero cerca del malecón si quieren cenar fuera.
 
 💰 Cómo funciona la cuenta
 • La tarifa que ya viste en Airbnb cubre la villa completa con el equipo de chef
 • Personas extras (hasta 30): $300/noche c/u, paga al llegar
-• Víveres: cuenta aparte transparente. Compras las hace nuestra chef Celene, pagás al llegar contra recibos. Promedio $250-280/persona/noche
+• Víveres: cuenta aparte transparente. Promedio $250-280/persona/noche
 
 🛎 Servicios opcionales con costo aparte
-• Yates, snorkel, pesca, esquí acuático — coordino yo todo
+• Yates, snorkel, pesca — coordino yo todo
 • Masajes en sitio con Michel
-• Fogata en la playa, cocos frescos
 • Paquete bodas/eventos formales $1,400/persona
 
 👉 Mirá las más de 168 reseñas ⭐ 4.84 en mi perfil:
@@ -425,57 +436,42 @@ Confirmás {numAdults} huéspedes o vienen más? Cualquier duda más, escribíme
 — Alexander 🏖
 ```
 
-#### Composer `{questionAnswer}` — determinista (REV 2 maintaining)
+#### Composer `{questionAnswer}` — determinista
 
 ```
 chef     → "El servicio de chef SÍ está incluido en la tarifa que ya viste en Airbnb (Chef Celene + cocinera + mozo)."
-veveres  → "Los víveres NO están incluidos en la tarifa de Airbnb — esos los compramos nosotros, costo transparente, pagás al llegar. Promedio $250-280/persona/noche."
-precio   → "La tarifa que ya viste en Airbnb cubre la villa completa con el equipo de chef. Lo único que se paga aparte son las personas extras (>16) a $300/noche y los víveres."
-mascotas → "Aceptamos hasta 2 mascotas por reservación, con un cargo único de $300 MXN por estancia (no por noche)."
+veveres  → "Los víveres NO están incluidos en la tarifa de Airbnb — esos los compramos nosotros, costo transparente. Promedio $250-280/persona/noche."
+precio   → "La tarifa que ya viste en Airbnb cubre la villa completa con el equipo de chef. Aparte: personas extras (>16) a $300/noche y los víveres."
+mascotas → "Aceptamos hasta 2 mascotas por reservación, cargo único de $300 MXN por estancia (no por noche)."
 evento   → "¡Felicidades por el evento! Para bodas/XV años manejamos paquete de $1,400/persona, mínimo 40 invitados."
 default  → "Muchas gracias por tu pregunta. Te respondo a detalle en el siguiente mensaje."
 ```
 
 #### Canary scaling plan
 
-| Fase | % auto-send | Duración | Gate próxima fase |
+| Fase | % auto-send | Duración | Gate |
 |---|---|---|---|
-| 0% (PR1 baseline) | 0% — todo approval_pending | Indefinido | PR1 mergeado |
-| Smoke test | 1 inquiry real manual | 24h | Alex aprueba calidad |
-| 10% | 1 de cada 10 | 7 días | <2 false positives |
-| 25% | 1 de cada 4 | 7 días | <5% rejection rate |
-| 50% | mitad auto-send | 14 días | Sustained <5% issues |
-| 100% | todas auto-send | indefinido | — |
+| 0% | 0% approval_pending | Indefinido | PR1 mergeado |
+| Smoke | 1 manual | 24h | Alex aprueba |
+| 10% | 1 de 10 | 7 días | <2 false positives |
+| 25% | 1 de 4 | 7 días | <5% rejection |
+| 50% | mitad | 14 días | <5% issues |
+| 100% | todas | — | — |
 
-**Telegram alert flow:**
-- High-stake (evento, complaint, off-platform) → siempre approval_pending + alert Karina
-- Canary % NO aplica a high-stake
-- Haiku confidence <0.5 → siempre approval_pending
+High-stake (evento/complaint/off-platform) → siempre approval_pending + Telegram Karina. Confidence <0.5 → approval_pending.
 
-#### Eval cases PR2 (REV 3 — agregados iq011, iq012)
+#### Eval cases PR2 (12)
 
-- iq001: Ana Karen real (chef + víveres) — msg2 NO contiene número MXN
-- iq002: EN guest mascotas Las Morenas
-- iq003: Inquiry sin pregunta concreta
-- iq004: Wedding inquiry high-stake
-- iq005: Off-platform attempt
-- iq006: Complaint pre-booking
-- iq007: Multiple topics
-- iq008: Precio explícito — bot dice "tarifa que ya viste en Airbnb", NO inventa número
-- iq009: Negotiation agresivo
-- iq010: Idioma payload incorrecto (FR pero payload dice ES)
-- **iq011 (NEW REV 3):** Host respondió 30min antes → PIR status='paused', bot NO envía, audit log claro
-- **iq012 (NEW REV 3):** Host respondió hace 2h sin más actividad humana → cron retoma normal, bot procesa Haiku + composer + send
+iq001 Ana Karen | iq002 EN mascotas | iq003 sin pregunta | iq004 wedding high-stake | iq005 off-platform | iq006 complaint | iq007 multiple | iq008 precio NO inventa número | iq009 negotiation | iq010 idioma payload incorrecto | iq011 host respondió → paused | iq012 host hace 2h → bot retoma.
 
 #### DoD PR2
 
-- 8 templates pegados en R2 vía `/admin/templates`
-- 12 eval cases ≥90% pass (iq001-iq012)
-- Canary scaling logic implementada
-- Smoke test 1 inquiry real respondida
-- `/admin/inquiry-replies` muestra canary status + pause status
-- Telegram alert high-stake LIVE
-- Worker deploy (manual `wrangler deploy`)
+- 8 templates R2
+- 12 eval ≥90% pass
+- Canary logic + smoke 10%
+- Telegram alert high-stake
+- Worker deploy manual
+- Karina training 15 min
 
 ---
 
@@ -483,319 +479,158 @@ default  → "Muchas gracias por tu pregunta. Te respondo a detalle en el siguie
 
 **Branch:** `feat/lifecycle-activation`
 **Effort:** 6-10h CC
-**Risk:** medio-alto (touches 25 active bookings)
+**Risk:** medio-alto
 **Dependency:** PR2 canary 100% sustained 14 días
 
-#### Lo que activa (todo ya construido)
+Handlers ya existen (`scanForWelcome`, `runPreArrivalScan`, `runPostStay`). Falta: 32 templates R2 + activar `MESSENGER_OUTBOUND_ENABLED='true'` + canary + pause logic 1h aplicada.
 
-| Stage | Handler existente | Action |
-|---|---|---|
-| `booked` → `pre_arrival_t30` | `scanForWelcome` en `pre-stay.ts` | Welcome msg |
-| pre_arrival_t30 → t14 → t7 → t1 | `runPreArrivalScan` | Touchpoints sequence |
-| `pre_arrival_t1` → `arrived` | mismo | Check-in day |
-| `arrived` → `in_stay` | cron auto | T+1 check |
-| `checked_out` → `review_pending` | `runPostStay` | Review request |
+Templates: `welcome-`, `pre-arrival-t7-`, `pre-arrival-t1-`, `post-stay-review-` × 4 villas × 2 lang = 32. ~4-6h Alex/Karina.
 
-Todos existen. Falta:
-1. Pegar templates Phase B.1 en R2 (32 templates)
-2. Activar `MESSENGER_OUTBOUND_ENABLED='true'`
-3. Canary scaling análogo PR2
-4. **REV 3:** Aplicar misma pause logic 1h a lifecycle bot
-
-#### Templates Phase B.1 mínimos
-
-Para PR3 minimum viable:
-- `welcome-<slug>-<lang>.md` × 8
-- `pre-arrival-t7-<slug>-<lang>.md` × 8
-- `pre-arrival-t1-<slug>-<lang>.md` × 8
-- `post-stay-review-<slug>-<lang>.md` × 8
-
-Total: 32 templates. ~4-6h Alex/Karina polish.
-
-#### Decisiones cerradas PR3
-
-| Decisión | Valor |
-|---|---|
-| Activación `MESSENGER_OUTBOUND_ENABLED` | Manual via `wrangler secret put` |
-| Canary scaling | 0→10→25→50→100% sobre 4 semanas |
-| Order activation | Welcome first, post-stay last |
-| Karina notification | Daily digest 09:00 Acapulco |
-| Pause flag | Respeta `bookings.pre_stay_skip=1` |
-| Quiet hours | NO send 22:00-08:00 Acapulco |
-| **(REV 3) Human pause 1h** | **Aplica a todos los touchpoints lifecycle** | Misma lógica que inquiry bot |
+Decisiones: activación manual `wrangler secret put`, canary 0→100% 4 semanas, welcome first post-stay last, daily digest 09:00, quiet hours 22:00-08:00, pause 1h.
 
 ---
 
-## §4 · Attachments — qué se puede mandar
-
-### Limits técnicos confirmados (Beds24 wiki)
+## §4 · Attachments
 
 | Channel | Tipos | Size |
 |---|---|---|
-| **Airbnb** | JPG, GIF, PNG **únicamente** | 2 MB |
-| **Vrbo** | PDF, JPG, GIF, PNG | 2 MB |
-| **Booking.com** | Email-based | 2 MB |
-| **WhatsApp BSP** | JPG, PNG, PDF, MP4, audio | 16 MB |
+| Airbnb | JPG, GIF, PNG | 2 MB |
+| Vrbo | PDF, JPG, GIF, PNG | 2 MB |
+| WhatsApp BSP | JPG, PNG, PDF, MP4, audio | 16 MB |
 
-**NO PDFs en Airbnb.** Para cotización detallada: texto largo o link a página.
-
-**Voto WC post-PR3:** foto de villa específica desde R2 si Haiku detecta interés alto. Defer.
+**NO PDFs en Airbnb.** Defer image attachments a post-PR3.
 
 ---
 
-## §5 · Arquitectura: bot único vs separado
+## §5 · Bot único vs separado
 
-**Voto WC final: Bot único con context switch por canal.**
-
-```
-worker-bot (Hono, deployed)
-├── Greeter (WhatsApp pre-booking, LIVE thread/217)
-├── Inquiry Responder (Airbnb pre-booking, NEW PR1-PR2)
-├── Lifecycle Bot (post-booking, PR3 activa)
-└── Karina Suggest (admin assist, ya LIVE)
-```
-
-**Lo común:** KB en KV, `sendMessageRouted`, `messenger_outbound`, kill switch, eval framework, **REV 3:** pause logic 1h.
-
-**Lo diferenciado:** Prompt per use-case, templates per channel, channel-specific rules.
+**Voto WC: Bot único con context switch.** KB 85% iguales, `sendMessageRouted` ya abstrae channel. Greeter + Inquiry + Lifecycle + Karina Suggest comparten infra.
 
 ---
 
-## §6 · Best practices research — industry validation (REV 3 ampliado)
-
-### Patrón canónico cross-industry (confirmado en research)
+## §6 · Best practices — industry validation
 
 | Plataforma | Trigger | Delay | Human handoff |
 |---|---|---|---|
-| **Uplisting** | Webhook | **0-60 min configurable** | "If you respond manually, the auto-responder will not trigger" |
-| **Hospitable** | Webhook | **0-60 min configurable** | "If you manually replied before scheduled time, we will not send it" |
-| **Guesty** | Webhook | **Delay answer field per-rule** | Manual pause per conversation |
-| **Hostaway** | Webhook | **Configurable** | "Delayed messages cancelled if new guest msg, AI reprocesses" |
-| **OpenClaw (OSS)** | Webhook | Configurable | Time-based resume threshold |
-| **RDM (este spec)** | **Webhook + 5min debounce** | **5min default** | **1h time-based unpause** |
+| Uplisting | Webhook | 0-60 min config | Skip si host respondió |
+| Hospitable | Webhook | 0-60 min config | Skip si host respondió |
+| Hostaway | Webhook | Config | Cancel + reprocess si guest msg |
+| RDM (spec) | Webhook + 5min debounce | 5min | 1h time-based unpause |
 
-**Conclusión:** RDM spec **alineado con industry standard**. 1h pause es middle ground entre Hospitable (sin auto-resume) y OpenClaw (configurable).
-
-### Métricas industry
-
-- <1h response → +25% conversion (Intellihost 5000 properties)
-- 89%→100% response rate → +116% instant bookings
-- Quick Responder badge (Airbnb)
-- Superhost requires ≥90% response rate
-
-**Target RDM:** <10 min auto-send (5min debounce + 5min cron worst case). Vs 2h actual = **mejora 12x**.
+Métricas: <1h response = +25% conversion. Target RDM <10min = mejora 12x.
 
 ---
 
-## §7 · Creatividad — propuestas adicionales (sin cambios REV 3)
+## §7 · Creatividad (sin cambios)
 
-15 ideas, mayoría defer post-PR3. Top 3 ya validadas:
-- §7.1 Upsells dinámicos post-confirmation
-- §7.2 VIP/repeat guest detection
-- §7.5 Quote attachment con imagen
-
-Ver thread/220 REV 2 §7 para lista completa.
+15 ideas. Top 3: upsells dinámicos, VIP detection, image attachment. Defer post-PR3. Ver REV 2 §7.
 
 ---
 
-## §8 · Inconsistencias cross-channel (REV 3 sin cambios)
+## §8 · Inconsistencias cross-channel (sin cambios)
 
-9 inconsistencias detectadas. Ver REV 2 §8 para detalle. Resumen:
-1. Servicio Las Morenas chef incluido vs opcional
-2. Reseñas count stale
-3. Combinada capacity 58 vs 60
-4. WiFi Morenas password diferente
-5. Clave caja "6720" universal
-6. Paquete bodas $1000 vs $1400
-7. Cancelación asimétrica
-8. Páginas missing /guia-llegada + /eventos
-9. (REV 2) "Total Airbnb" no se puede mostrar
+9 detectadas: Morenas chef opcional, reseñas count, Combinada 58/60, WiFi password, clave caja, bodas $1000/$1400, cancelación asimétrica, pages 404, Total Airbnb no mostrable.
 
 ---
 
 ## §9 · Cost analysis
 
-### Anthropic API budget (REV 3)
-
-| Phase | Volume | Cost per request | Monthly |
-|---|---|---|---|
-| PR1 test | 5 inquiries | $0.005 | $0 (one-time) |
-| PR2 canary 10% | 3/day | $0.005 | ~$0.50/mes |
-| PR2 100% | 10/day | $0.005 | ~$1.50/mes |
-| PR3 lifecycle 100% | 25 bookings × 5 touchpoints | $0.002 | ~$0.25/mes |
-| **Total expected** | ~150 calls/mo | — | **~$2-3 USD/mes** |
-
-**REV 3 nota:** debounce window NO agrega LLM cost (procesa 1 vez después del debounce, no múltiples). Pause logic NO usa LLM (time-based puro).
-
-**Total infrastructure:** <$5 USD/mes. ~$60/año.
+~$2-3 USD/mes Anthropic full automation. Debounce NO agrega LLM cost (procesa 1x post-debounce). Pause time-based NO usa LLM. Total <$5/mes.
 
 ---
 
 ## §10 · Definition of done global
 
-### PR1 (REV 3)
-- Migration 0051 applied remote D1 (con columnas process_at, last_inbound_msg_at, bot_pause_until)
-- Webhook handler integrado con `enqueueInquiryReply`
-- Cron `*/5min` integrado con `processReadyInquiries` + backup sweep
-- Approval UI live
-- Smoke test debounce: 3 msgs guest en 90 seg → 1 PIR, process_at se resetea
-- Smoke test pause: host msg → PIR paused 1h → 1h sin host → unpause
-- Tests ≥85% coverage
-- Zero auto-sends
+PR1: migration 0052 + integration runBeds24Normalize + anti-loop + cron + UI + smoke + tests ≥85% + greeter no regresión + zero auto-sends.
+PR2: 8 templates + 12 eval ≥90% + canary + Telegram + deploy + Karina training.
+PR3: 32 templates + MESSENGER_OUTBOUND_ENABLED + canary + quiet hours + digest + pause 1h.
 
-### PR2
-- 8 templates in R2
-- 12 eval cases ≥90% pass (incluye iq011 + iq012 pause logic)
-- Canary 10% smoke test successful
-- Telegram alert high-stake LIVE
-- Worker deploy
-- Karina training (15 min)
-
-### PR3
-- 32 lifecycle templates in R2
-- `MESSENGER_OUTBOUND_ENABLED='true'` deployed
-- Canary 0%→10% smoke test
-- Pre-stay + post-stay scans verified
-- Quiet hours respected
-- Karina daily digest LIVE
-- Pause logic 1h aplicada a lifecycle
-
-### Global success metrics
-- Inquiry response time: <10 min average (vs 2h current)
-- Inquiry response rate: 100%
-- Lead conversion rate: maintain or improve (>28% baseline)
-- False positive rate: <5%
-- Cost: <$10 USD/mes Anthropic
+Metrics: response <10min, rate 100%, conversion >28%, false positive <5%, cost <$10/mes.
 
 ---
 
-## §11 · Risks + mitigations (REV 3 ampliado)
+## §11 · Risks + mitigations
 
-| Risk | Severity | Mitigation |
+| Risk | Sev | Mitigation |
 |---|---|---|
-| Bot manda info incorrecta | Alta | Composer determinista + approval mode PR1 + canary |
-| Bot promete chef no disponible | Alta | Template "nuestro equipo de chef" genérico |
-| Off-platform attempt | Alta | Red flag detection + escalate Karina |
-| KB stale | Media | R2→KV pipeline refresh 2h |
-| Idioma mistakes payload.lang | Media | Detectar via Haiku |
-| Wedding inquiry mal manejada | Alta | High-stake siempre approval_pending |
-| Anthropic API outage | Baja | Fallback: template raw |
-| Beds24 API rate limit | Baja | 20 per cron run, retry exponential |
-| Karina overwhelmed por approvals | Media | Canary scaling auto-reduces load |
-| Casa Chamán mencionada por error | Alta | Filter roomId in handler |
+| Bot info incorrecta | Alta | Composer determinista + approval + canary |
+| Promete chef no disponible | Alta | "nuestro equipo de chef" genérico |
+| Off-platform | Alta | Red flag + escalate Karina |
+| KB stale | Media | R2→KV refresh 2h |
+| payload.lang miente | Media | Detectar via Haiku |
+| Wedding mal manejada | Alta | High-stake approval_pending |
+| Casa Chamán mencionada | Alta | Filter roomId 679176 |
 | Greeter v7.1 break | Alta | Separate eval framework |
-| Bot muestra precio incorrecto | Alta | NUNCA mostrar número, "tarifa que ya viste" |
-| **(NEW REV 3)** Bot retoma justo cuando Karina sigue gestionando | Media | **1h window es conservador. Si Karina necesita más, puede mark `bot_pause_until` manual via /admin** |
-| **(NEW REV 3)** Webhook lost → inquiry sin PIR row | Media | **Backup sweep cada 3er tick `*/5min` = max 15min detection** |
-| **(NEW REV 3)** Debounce reset infinito (guest spam) | Baja | **Cap: process_at no se puede resetear más de 5 veces. Después de 5 → procesa forzado** |
+| Precio incorrecto | Alta | NUNCA número, "tarifa que ya viste" |
+| Bot retoma mientras Karina gestiona | Media | 1h window conservador + bot_pause_until manual |
+| Webhook lost | Media | Backup sweep cada 3er tick (max 15min) |
+| Debounce reset infinito (spam) | Baja | Cap 5 resets → procesa forzado |
+| **(REV 4) Loop booking_modified eco** | **Alta** | **Solo enqueue booking_created + dedup booking_id (§0.3 Ajuste 3)** |
+| **(REV 4) Migration collision** | **Media** | **0052 verificado, audit pre-flight** |
+| **(REV 4) Tocar payment-flow code** | **Alta** | **Out-of-scope explícito, NO tocar worker-pago** |
 
 ---
 
-## §12 · Recomendación final (REV 3 — arquitectura cerrada)
+## §12 · Recomendación final
 
-### Camino propuesto (sin cambios)
-
-1. **PR1 — Esta semana** (8-12h CC + Alex polish templates en paralelo)
-2. **PR2 — Próxima semana** (8-10h CC + 4-6h Alex/Karina templates)
-3. **PR3 — 2-3 semanas después** (6-10h CC + 4-6h Alex/Karina templates lifecycle)
-
-### Lo que necesito de Alex para arrancar
-
-**Status REV 3: Todas las preguntas cerradas. Listo para DoIt task.**
-
-Preguntas históricas (ya respondidas):
-1. ✅ Plan PR1 → PR2 → PR3 en 4-6 semanas
-2. ✅ Tono mix costeño + neutral, 2 mensajes, emojis funcionales
-3. ⏳ Karina templates polish próxima semana (TBC con Karina)
-4. ✅ CC arranca PR1 autónomo
-5. ✅ Precio "tarifa que ya viste en Airbnb"
-6. ✅ Trigger: webhook + 5min debounce + reset
-7. ✅ Skip + audit si host respondió
-8. ✅ Human pause 1h time-based unpause
+PR1 (thread/232) → PR2 → PR3 en 4-6 semanas. Todas las decisiones cerradas. CC arranca PR1 cuando Alex confirme + cuando otra sesión CC (payment-flow) termine — **VERIFICADO: payment-flow ya mergeó, vía libre.**
 
 ---
 
-## §13 · Appendix — research raw (REV 3)
+## §13 · Appendix — research raw
 
-### Industry quotes (textuales)
+### Industry quotes
 
-**Uplisting:** "Uplisting can respond almost instantly if you like (0-minute time delay), however, some members prefer to delay up to 60 minutes to allow them to respond manually. If you respond manually, the auto-responder will not trigger."
+**Uplisting:** "Some members prefer to delay up to 60 minutes to allow them to respond manually. If you respond manually, the auto-responder will not trigger."
+**Hospitable:** "If you manually replied before the scheduled send time, we will not send it."
+**Hostaway:** "Delayed messages cancelled if new guest message received during the delay; AI reprocesses the whole conversation."
 
-**Hospitable:** "If you have a delay on your message, and you manually replied to the guest before the scheduled send time of the message, then we will not send it. This is to avoid repetition."
+### Beds24 payload
 
-**Hostaway:** "Delayed Auto-Reply messages are cancelled (will not be sent) if a new guest message is received during the delay period. Because the new guest message potentially brings new context, AI will take the new guest message into account and reprocess the whole conversation to regenerate a fresh message."
+inquiry: `price` (net Alex), resto null. confirmed: `price` + `commission`. NUNCA viene: total guest, service fee, taxes.
 
-**OpenClaw (OSS):** "When a fromMe message is detected in a DM thread where auto-reply is active, the AI pauses auto-reply for that specific thread. Auto-reply resumes either after [time-based threshold] or [manual resume command]."
+### Emoji blocklist
 
-### Beds24 payload detalle (REV 2 maintaining)
+BLOCKED: 🌅 📶 | Suspected: 🔒 🚨 🍳 🚿 | SAFE: 🛏 ✅ 👨‍🍳 🏊 🏖 🧹 🎵 🛻 🛥 🛎 🛒 🍹 🔥 🥥 💆 🐴 🚣 🤿 🎉 🏅 💬 ☀ ⛱ 1️⃣-6️⃣
 
-**En `event_type='booking_created' status='inquiry'`:**
-- `price`: ✅ presente (= net Alex)
-- Resto: 0/null
+### Integration point (REV 4)
 
-**En `event_type='booking_created' status='confirmed'`:**
-- `price`: ✅ presente (= net Alex)
-- `commission`: ✅ presente
-- Resto: typically null
+`runBeds24Normalize` en `apps/worker-bot/src/beds24-normalize.ts`, branch `decision.reason==='skipped_inquiry'`. Reutilizar `parseBeds24Booking()` exportado. Anti-loop: solo booking_created, dedup booking_id.
 
-**NUNCA viene:** Total guest, service fee, taxes locales.
+### Migrations (REV 4)
 
-### Emoji blocklist Airbnb (sin cambios)
+Último en main: `0051_bookings_beds24_booking_id.sql` (PR #194 payment-flow). Inquiry bot usa **0052**.
 
-**BLOCKED confirmed:** 🌅 📶
-**Suspected BLOCKED:** 🔒 🚨 🍳 🚿
-**SAFE confirmed:** 🛏 ✅ 👨‍🍳 🏊 🏖 🧹 🎵 🛻 🛥 🛎 🛒 🍹 🔥 🥥 💆 🐴 🚣 🤿 🎉 🏅 💬 ☀ ⛱ 1️⃣-6️⃣
+### Cron schedule
 
-### D1 schema (REV 3)
-
-```
-beds24_events            -- inquiries land here
-bot_messages_inbox       -- guest + host messages threaded
-beds24_bookings          -- normalized bookings, lifecycle status
-booking_captures         -- pets/menu/chef capture
-inquiries_closed         -- audit trail auto-closed inquiries
-messenger_outbound       -- audit trail outbound, gated by flag
-pending_welcomes         -- legacy, deprecated
-pending_inquiry_replies  -- NEW PR1 (REV 3 schema con process_at, bot_pause_until)
-```
-
-### Cron schedule (REV 3 — sin agregar nuevos)
-
-- `0 10 * * *` — daily cron (sin cambio)
-- `*/5 * * * *` — bot polling (+ processReadyInquiries + backup sweep cada 3er tick)
-- `*/30 * * * *` — pre-stay welcome scan (sin cambio)
+`*/5min` (polling, llama runBeds24Normalize) + processReadyInquiries + backup sweep cada 3er tick. NO nuevo cron.
 
 ---
 
 ## §14 · Status
 
-**Documento status:** REV 3 — Ready for DoIt CC.
+**REV 4 — Ready for DoIt CC (thread/232).**
 
-**Cambios REV 3 (2026-05-27, post-feedback Alex):**
-- Arquitectura webhook + 5min debounce + reset on update CERRADA
-- Skip auto-send si host respondió CERRADO
-- Human pause time-based 1h CERRADO
-- Cron `*/5min` reutilizado, NO agrega 5to cron
-- Backup sweep cada 3er tick
-- Schema migration 0051 actualizado con process_at, last_inbound_msg_at, bot_pause_until, pause_reason
-- Status enum extendido: awaiting_processing, paused, superseded_by_human
-- Handler split en 3 funciones: enqueueInquiryReply, processReadyInquiries, checkHumanPause
-- Tests PR1 ampliados con 5 escenarios nuevos (burst, pause, unpause, backup sweep)
-- Eval cases PR2 ampliados con iq011 + iq012
-- §6 ampliado con industry validation textual
-- §11 risks: agregados 3 risks REV 3 + mitigations
-- §13 industry quotes textuales agregadas
+**Cambios REV 4 (2026-05-28, post payment-flow merge):**
+- §0.3 nueva: 4 ajustes de integración verificados contra repo real
+- Migration 0051 → 0052 (PR #194 tomó 0051)
+- Integration point preciso: runBeds24Normalize (no webhook HTTP), reutiliza parseBeds24Booking
+- Anti-loop guard: solo booking_created, dedup booking_id (incident 2026-05-18: 17 welcomes duplicados)
+- NO tocar payment-flow code (worker-pago recién mergeado)
+- Schema 0052: + debounce_reset_count (cap 5), beds24_booking_id como dedup key
+- Tests PR1: +anti-loop test (12 total)
+- §11 risks: +3 REV 4 (loop eco, migration collision, payment-flow)
+- DoIt task renumerado 222 → 232
 
 **Próximas acciones:**
-- Alex aprueba DoIt task para CC
-- CC ejecuta PR1 autónomo con spec REV 3
+- Payment-flow CC terminó + mergeó (verificado PRs #194-#198) → vía libre
+- Alex aprueba thread/232 DoIt task
+- CC ejecuta PR1 autónomo
 - WC review pre-merge
-- Alex deploy + smoke test
-
-**Sesión WC:** Spec cerrado. Listo para handoff a CC.
+- Alex deploy + smoke
 
 ---
 
-*FIN thread/220 REV 3. Arquitectura cerrada, ready for DoIt.*
+*FIN thread/220 REV 4. Arquitectura cerrada + ajustes integración. Ready for DoIt thread/232.*
 
-— Web Claude, 2026-05-27
+— Web Claude, 2026-05-28
